@@ -23,6 +23,11 @@ convert_sessions_to_csv() {
     esac
 }
 
+# Function to extract JSON sessions to Hugging Face dataset
+extract_to_dataset() {
+    jq -r '.["chat-next-web-store"].sessions[] | { id: .id, topic: .topic, memoryPrompt: .memoryPrompt, stat: .stat, lastUpdate: .lastUpdate, lastSummarizeIndex: .lastSummarizeIndex, mask: .mask, messages: [.messages[] | { id: .id, date: .date, role: .role, content: .content }] }' | jq -s '{ dataset: . }'
+}
+
 # Prompt the user for the JSON file path
 echo "Enter the path to the JSON file:"
 read -r json_file_path
@@ -34,42 +39,70 @@ if [[ ! -f "$json_file_path" ]]; then
 fi
 
 # Prompt the user for the output option
-echo "Select the message output format:"
-echo "1) Inline Formatting"
-echo "2) One Message Per Line"
-echo "3) Separate Files for Sessions and Messages"
-echo "4) JSON String in CSV"
-read -r format_option
+echo "Select the output format:"
+echo "1) CSV"
+echo "2) Hugging Face Dataset"
+read -r output_option
 
 # Read the JSON content
 json_content=$(<"$json_file_path")
 
-# Convert the sessions to CSV according to the chosen format
-csv_output=$(echo "$json_content" | convert_sessions_to_csv "$format_option")
+if [[ $output_option == "1" ]]; then
+    # Prompt the user for the CSV format option
+    echo "Select the message output format:"
+    echo "1) Inline Formatting"
+    echo "2) One Message Per Line"
+    echo "3) Separate Files for Sessions and Messages"
+    echo "4) JSON String in CSV"
+    read -r format_option
 
-# Output the CSV content
-echo "$csv_output"
+    # Convert the sessions to CSV according to the chosen format
+    csv_output=$(echo "$json_content" | convert_sessions_to_csv "$format_option")
 
-# If option 3 is chosen, handle messages separately
-if [[ $format_option == "3" ]]; then
-    messages_output=$(jq -r '.["chat-next-web-store"].sessions[] | .id as $session_id | .memoryPrompt as $memoryPrompt | .messages[] | [$session_id, .id, .date, .role, .content, $memoryPrompt] | @csv' <<< "$json_content")
-    echo "$messages_output"
-fi
+    # Output the CSV content
+    echo "$csv_output"
 
-# Optionally, you can save this output to a file
-echo "Do you want to save the output to a file? (yes/no)"
-read -r save_output
-
-if [[ $save_output == "yes" ]]; then
-    echo "Enter the name of the CSV file to save:"
-    read -r csv_file_name
+    # If option 3 is chosen, handle messages separately
     if [[ $format_option == "3" ]]; then
-        echo "$csv_output" > "${csv_file_name}_sessions.csv"
-        echo "$messages_output" > "${csv_file_name}_messages.csv"
-        echo "Session output saved to ${csv_file_name}_sessions.csv"
-        echo "Messages output saved to ${csv_file_name}_messages.csv"
-    else
-        echo "$csv_output" > "$csv_file_name"
-        echo "Output saved to $csv_file_name"
+        messages_output=$(jq -r '.["chat-next-web-store"].sessions[] | .id as $session_id | .memoryPrompt as $memoryPrompt | .messages[] | [$session_id, .id, .date, .role, .content, $memoryPrompt] | @csv' <<< "$json_content")
+        echo "$messages_output"
     fi
+
+    # Optionally, you can save this output to a file
+    echo "Do you want to save the output to a file? (yes/no)"
+    read -r save_output
+
+    if [[ $save_output == "yes" ]]; then
+        echo "Enter the name of the CSV file to save:"
+        read -r csv_file_name
+        if [[ $format_option == "3" ]]; then
+            echo "$csv_output" > "${csv_file_name}_sessions.csv"
+            echo "$messages_output" > "${csv_file_name}_messages.csv"
+            echo "Session output saved to ${csv_file_name}_sessions.csv"
+            echo "Messages output saved to ${csv_file_name}_messages.csv"
+        else
+            echo "$csv_output" > "$csv_file_name"
+            echo "Output saved to $csv_file_name"
+        fi
+    fi
+elif [[ $output_option == "2" ]]; then
+    # Extract the JSON sessions to Hugging Face dataset format
+    dataset_output=$(echo "$json_content" | extract_to_dataset)
+
+    # Output the dataset content
+    echo "$dataset_output"
+
+    # Optionally, you can save this output to a file
+    echo "Do you want to save the output to a file? (yes/no)"
+    read -r save_output
+
+    if [[ $save_output == "yes" ]]; then
+        echo "Enter the name of the dataset file to save (without the extension):"
+        read -r dataset_file_name
+        echo "$dataset_output" > "${dataset_file_name}.json"
+        echo "Dataset output saved to ${dataset_file_name}.json"
+    fi
+else
+    echo "Invalid output option."
+    exit 1
 fi
