@@ -78,4 +78,4 @@ Contributions to improve the script or extend its functionality are welcome. Ple
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
