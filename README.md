@@ -1,4 +1,5 @@
 # ChatGPT Next Web Session Exporter
+[![Go Report Card](https://goreportcard.com/badge/github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter)](https://goreportcard.com/report/github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter)
 
 This repository contains tools that facilitate the conversion of chat session data from JSON format to various CSV formats and Hugging Face datasets. It provides a Bash script and a Go program designed to cater to different requirements for data processing and readability, offering multiple output options.
 
