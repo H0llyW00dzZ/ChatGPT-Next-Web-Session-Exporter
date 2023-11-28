@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 // Define Go structs to match the JSON structure
@@ -66,7 +68,42 @@ func readJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	return store, err
 }
 
-// Function to convert sessions to CSV format
+func printLine(widths []int) {
+	for _, w := range widths {
+		fmt.Printf("+-%s-", strings.Repeat("-", w))
+	}
+	fmt.Println("+")
+}
+
+func printTable(headers []string, data [][]string) {
+	widths := make([]int, len(headers))
+	for i, header := range headers {
+		widths[i] = len(header)
+	}
+	for _, row := range data {
+		for i, cell := range row {
+			if len(cell) > widths[i] {
+				widths[i] = len(cell)
+			}
+		}
+	}
+
+	printLine(widths)
+	for i, header := range headers {
+		fmt.Printf("| %-*s ", widths[i], header)
+	}
+	fmt.Println("|")
+	printLine(widths)
+
+	for _, row := range data {
+		for i, cell := range row {
+			fmt.Printf("| %-*s ", widths[i], cell)
+		}
+		fmt.Println("|")
+	}
+	printLine(widths)
+}
+
 func convertSessionsToCSV(sessions []Session, formatOption int) (string, error) {
 	var (
 		csvData [][]string
@@ -115,7 +152,16 @@ func convertSessionsToCSV(sessions []Session, formatOption int) (string, error) 
 		return "", fmt.Errorf("invalid format option")
 	}
 
-	// Convert the slice of slices to CSV string
+	// Using tablewriter to print the table
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader(headers)
+	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetCenterSeparator("|")
+	for _, v := range csvData {
+		table.Append(v)
+	}
+	table.Render() // Send output
+
 	csvString := &strings.Builder{}
 	csvWriter := csv.NewWriter(csvString)
 	if err := csvWriter.Write(headers); err != nil {
@@ -259,7 +305,7 @@ func main() {
 			}
 
 			// Output the CSV content
-			fmt.Println(csvOutput)
+			//fmt.Println(csvOutput)
 
 			// Optionally, you can save this output to a file
 			fmt.Println("Do you want to save the output to a file? (yes/no)")
