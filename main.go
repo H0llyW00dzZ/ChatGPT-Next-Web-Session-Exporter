@@ -155,7 +155,7 @@ func convertSessionsToCSV(sessions []Session, formatOption int) (string, error) 
 	// Using tablewriter to print the table
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader(headers)
-	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})
 	table.SetCenterSeparator("|")
 	for _, v := range csvData {
 		table.Append(v)
