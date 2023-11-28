@@ -79,6 +79,8 @@ You will be asked to provide the path to your JSON file and to choose your prefe
 
 ### Go Program
 
+![Go Touring](https://i.imgur.com/weFCodK.png)
+
 To use the Go program (`main.go`), follow these steps:
 
 1. Clone the repository or download the `main.go` file.
