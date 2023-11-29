@@ -386,7 +386,7 @@ func main() {
 		}
 
 		// Output the dataset content
-		fmt.Println(datasetOutput)
+		//fmt.Println(datasetOutput) // disable for a temporary fix for the large output
 
 		// Optionally, you can save this output to a file
 		fmt.Println("Do you want to save the output to a file? (yes/no)")
