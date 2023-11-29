@@ -12,6 +12,27 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+// Custom type to handle both string and numeric JSON values for ID (Magic Golang 🎩 🪄)
+type StringOrInt string
+
+func (soi *StringOrInt) UnmarshalJSON(data []byte) error {
+	// Try unmarshalling into a string
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		// If there is an error, try unmarshalling into an int
+		var i int64
+		if err := json.Unmarshal(data, &i); err != nil {
+			return err // Return the error if it is not a string or int
+		}
+		// Convert int to string and assign it to the custom type
+		*soi = StringOrInt(strconv.FormatInt(i, 10))
+		return nil
+	}
+	// If no error, assign the string value to the custom type
+	*soi = StringOrInt(s)
+	return nil
+}
+
 // Define Go structs to match the JSON structure
 type Message struct {
 	ID      string `json:"id"`
@@ -27,11 +48,11 @@ type Stat struct {
 }
 
 type Mask struct {
-	ID        string `json:"id"`
-	Avatar    string `json:"avatar"`
-	Name      string `json:"name"`
-	Lang      string `json:"lang"`
-	CreatedAt int64  `json:"createdAt"` // Changed to int64 assuming it's a Unix timestamp
+	ID        StringOrInt `json:"id"` // Use the custom type for ID
+	Avatar    string      `json:"avatar"`
+	Name      string      `json:"name"`
+	Lang      string      `json:"lang"`
+	CreatedAt int64       `json:"createdAt"` // Assuming it's a Unix timestamp
 }
 
 type Session struct {
@@ -75,7 +96,7 @@ func printLine(widths []int) {
 	fmt.Println("+")
 }
 
-func printTable(headers []string, data [][]string) {
+func printTable(headers []string, data [][]string, numRows int) {
 	widths := make([]int, len(headers))
 	for i, header := range headers {
 		widths[i] = len(header)
@@ -95,7 +116,10 @@ func printTable(headers []string, data [][]string) {
 	fmt.Println("|")
 	printLine(widths)
 
-	for _, row := range data {
+	for rowIndex, row := range data {
+		if numRows >= 0 && rowIndex >= numRows {
+			break
+		}
 		for i, cell := range row {
 			fmt.Printf("| %-*s ", widths[i], cell)
 		}
@@ -152,15 +176,39 @@ func convertSessionsToCSV(sessions []Session, formatOption int) (string, error) 
 		return "", fmt.Errorf("invalid format option")
 	}
 
-	// Using tablewriter to print the table
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader(headers)
-	table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})
-	table.SetCenterSeparator("|")
-	for _, v := range csvData {
-		table.Append(v)
+	// Ask the user if they want to display the table
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Do you want to display the table? (yes/no): ")
+	displayTable, _ := reader.ReadString('\n')
+	displayTable = strings.TrimSpace(displayTable)
+
+	if displayTable == "yes" {
+		// Ask the user how many messages to display
+		fmt.Print("How many messages do you want to display in the table? (Enter a number): ")
+		numMessagesStr, _ := reader.ReadString('\n')
+		numMessagesStr = strings.TrimSpace(numMessagesStr)
+		numMessages, err := strconv.Atoi(numMessagesStr)
+		if err != nil {
+			fmt.Println("Invalid number. Displaying all messages.")
+			numMessages = -1 // Use -1 as an indicator to display all messages
+		}
+
+		// Using tablewriter to print the table
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader(headers)
+		table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})
+		table.SetCenterSeparator("|")
+
+		// If numMessages is -1, append all rows; otherwise, append up to numMessages rows
+		if numMessages < 0 || numMessages > len(csvData) {
+			numMessages = len(csvData)
+		}
+
+		for _, v := range csvData[:numMessages] {
+			table.Append(v)
+		}
+		table.Render() // Send output
 	}
-	table.Render() // Send output
 
 	csvString := &strings.Builder{}
 	csvWriter := csv.NewWriter(csvString)
@@ -295,7 +343,6 @@ func main() {
 
 			fmt.Printf("Sessions data saved to %s\n", sessionsFileName)
 			fmt.Printf("Messages data saved to %s\n", messagesFileName)
-			return
 		} else {
 			// Convert the sessions to CSV according to the chosen format
 			csvOutput, err := convertSessionsToCSV(store.ChatNextWebStore.Sessions, formatOption)
