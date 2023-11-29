@@ -74,7 +74,8 @@ type ChatNextWebStore struct {
 	ChatNextWebStore Store `json:"chat-next-web-store"`
 }
 
-// Function to read JSON from file
+// readJSONFromFile reads a JSON file from the given filePath and unmarshals it into a ChatNextWebStore.
+// If the JSON does not match the expected format, it returns an error.
 func readJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	var store ChatNextWebStore
 
@@ -86,7 +87,16 @@ func readJSONFromFile(filePath string) (ChatNextWebStore, error) {
 
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&store)
-	return store, err
+	if err != nil {
+		return store, err
+	}
+
+	// Check if the store.ChatNextWebStore.Sessions is nil, which indicates the JSON was not in the expected format.
+	if store.ChatNextWebStore.Sessions == nil {
+		return store, fmt.Errorf("JSON does not match the expected format chat-next-web-store")
+	}
+
+	return store, nil
 }
 
 func printLine(widths []int) {
@@ -300,8 +310,8 @@ func main() {
 	// Read the JSON content
 	store, err := readJSONFromFile(jsonFilePath)
 	if err != nil {
-		fmt.Printf("Failed to read the JSON file: %s\n", err)
-		return
+		fmt.Printf("Error reading or parsing the JSON file: %s\n", err)
+		os.Exit(1) // Exit the program with a non-zero status code.
 	}
 
 	// Prompt the user for the output option
