@@ -188,26 +188,26 @@ func convertSessionsToCSV(sessions []Session, formatOption int) (string, error) 
 		numMessagesStr, _ := reader.ReadString('\n')
 		numMessagesStr = strings.TrimSpace(numMessagesStr)
 		numMessages, err := strconv.Atoi(numMessagesStr)
+
+		// If the conversion fails, print an error and skip displaying the table
 		if err != nil {
-			fmt.Println("Invalid number. Displaying all messages.")
-			numMessages = -1 // Use -1 as an indicator to display all messages
-		}
+			fmt.Println("Invalid number. Skipping table display.")
+		} else {
+			// Using tablewriter to print the table
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader(headers)
+			table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})
+			table.SetCenterSeparator("|")
 
-		// Using tablewriter to print the table
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader(headers)
-		table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})
-		table.SetCenterSeparator("|")
-
-		// If numMessages is -1, append all rows; otherwise, append up to numMessages rows
-		if numMessages < 0 || numMessages > len(csvData) {
-			numMessages = len(csvData)
+			// Append up to numMessages rows
+			for i, v := range csvData {
+				if i >= numMessages {
+					break
+				}
+				table.Append(v)
+			}
+			table.Render() // Send output
 		}
-
-		for _, v := range csvData[:numMessages] {
-			table.Append(v)
-		}
-		table.Render() // Send output
 	}
 
 	csvString := &strings.Builder{}
