@@ -1,3 +1,5 @@
+// Package main is the entry point for the CLI tool that utilizes the exporter package
+// to process chat session data and provide various output formats.
 package main
 
 import (
@@ -30,6 +32,7 @@ func main() {
 	processOutputOption(reader, outputOption, store.ChatNextWebStore.Sessions)
 }
 
+// promptForInput prompts the user for input and returns the trimmed response.
 func promptForInput(reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, err := reader.ReadString('\n')
@@ -40,6 +43,7 @@ func promptForInput(reader *bufio.Reader, prompt string) string {
 	return strings.TrimSpace(input)
 }
 
+// processOutputOption processes the chosen output option based on user input.
 func processOutputOption(reader *bufio.Reader, outputOption string, sessions []exporter.Session) {
 	switch outputOption {
 	case "1":
@@ -51,6 +55,7 @@ func processOutputOption(reader *bufio.Reader, outputOption string, sessions []e
 	}
 }
 
+// processCSVOption processes the CSV output option selected by the user.
 func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 	// Prompt the user for the CSV format option
 	formatOptionStr := promptForInput(reader, "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n")
@@ -83,6 +88,7 @@ func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 	}
 }
 
+// processDatasetOption processes the Hugging Face Dataset output option selected by the user.
 func processDatasetOption(reader *bufio.Reader, sessions []exporter.Session) {
 	datasetOutput, err := exporter.ExtractToDataset(sessions)
 	if err != nil {
@@ -92,6 +98,7 @@ func processDatasetOption(reader *bufio.Reader, sessions []exporter.Session) {
 	saveToFile(reader, datasetOutput, "dataset")
 }
 
+// saveToFile saves the output content to a file based on user input.
 func saveToFile(reader *bufio.Reader, content string, fileType string) {
 	saveOutput := promptForInput(reader, fmt.Sprintf("Do you want to save the output to a file? (yes/no)\n"))
 	if saveOutput == "yes" {
