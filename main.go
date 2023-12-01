@@ -65,6 +65,11 @@ func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 		return
 	}
 
+	csvFileName := ""
+	if formatOption != 3 {
+		csvFileName = promptForInput(reader, "Enter the name of the CSV file to save: ")
+	}
+
 	switch formatOption {
 	case 3:
 		sessionsFileName := promptForInput(reader, "Enter the name of the sessions CSV file to save: ")
@@ -79,12 +84,12 @@ func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 		fmt.Printf("Sessions data saved to %s\n", sessionsFileName)
 		fmt.Printf("Messages data saved to %s\n", messagesFileName)
 	default:
-		csvOutput, err := exporter.ConvertSessionsToCSV(sessions, formatOption)
+		err := exporter.ConvertSessionsToCSV(sessions, formatOption, csvFileName)
 		if err != nil {
 			fmt.Printf("Failed to convert sessions to CSV: %s\n", err)
 			return
 		}
-		saveToFile(reader, csvOutput, "CSV")
+		fmt.Printf("CSV output saved to %s\n", csvFileName)
 	}
 }
 
