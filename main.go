@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	exporter "github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 )
 
 func main() {
