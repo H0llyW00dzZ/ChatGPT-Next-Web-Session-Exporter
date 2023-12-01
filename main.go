@@ -127,6 +127,6 @@ func saveToFile(reader *bufio.Reader, content string, fileType string) {
 			fmt.Printf("Failed to write to the %s file: %s\n", fileType, err)
 			return
 		}
-		fmt.Printf("%s output saved to %s\n", strings.Title(fileType), fileName)
+		fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
 	}
 }
