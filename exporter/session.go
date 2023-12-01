@@ -153,49 +153,6 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	return store, nil
 }
 
-// printLine is a helper function used to print a line in a table.
-func printLine(widths []int) {
-	for _, w := range widths {
-		fmt.Printf("+-%s-", strings.Repeat("-", w))
-	}
-	fmt.Println("+")
-}
-
-// printTable prints a formatted table given headers and data. It uses the widths
-// of the headers to determine the column sizes and can be limited to a certain
-// number of rows.
-func printTable(headers []string, data [][]string, numRows int) {
-	widths := make([]int, len(headers))
-	for i, header := range headers {
-		widths[i] = len(header)
-	}
-	for _, row := range data {
-		for i, cell := range row {
-			if len(cell) > widths[i] {
-				widths[i] = len(cell)
-			}
-		}
-	}
-
-	printLine(widths)
-	for i, header := range headers {
-		fmt.Printf("| %-*s ", widths[i], header)
-	}
-	fmt.Println("|")
-	printLine(widths)
-
-	for rowIndex, row := range data {
-		if numRows >= 0 && rowIndex >= numRows {
-			break
-		}
-		for i, cell := range row {
-			fmt.Printf("| %-*s ", widths[i], cell)
-		}
-		fmt.Println("|")
-	}
-	printLine(widths)
-}
-
 // ConvertSessionsToCSV writes a slice of Session objects into a CSV file.
 // It formats the CSV data in different ways based on the formatOption parameter.
 // It returns an error if the format option is invalid or if writing the CSV data fails.
