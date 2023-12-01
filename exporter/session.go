@@ -18,7 +18,7 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	csvData, err := exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline)
+//	csvData, err := exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
