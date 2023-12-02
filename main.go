@@ -1,3 +1,4 @@
+// @main.go:
 // Package main is the entry point for the CLI tool that utilizes the exporter package
 // to process chat session data and provide various output formats.
 package main
@@ -12,6 +13,7 @@ import (
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 )
 
+// main is the entry point of the CLI tool.
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -55,7 +57,11 @@ func processOutputOption(reader *bufio.Reader, outputOption string, sessions []e
 	}
 }
 
-// processCSVOption processes the CSV output option selected by the user.
+// processCSVOption prompts the user for the CSV format option and performs the corresponding actions based on the selected option.
+// It takes a reader to read user input, and a slice of sessions as input.
+// If the format option is 3, it prompts the user for the names of the sessions and messages CSV files to save, and calls exporter.CreateSeparateCSVFiles to create separate CSV files for sessions and messages.
+// If the format option is not 3, it prompts the user for the name of the CSV file to save, and calls exporter.ConvertSessionsToCSV to convert sessions to CSV based on the selected format option.
+// It prints the output file names or error messages accordingly.
 func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 	// Prompt the user for the CSV format option
 	formatOptionStr := promptForInput(reader, "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n")

@@ -1,3 +1,5 @@
+// @main_test.go:
+// Is Package main provides tests for the main package of the ChatGPT-Next-Web-Session-Exporter application.
 package main
 
 import (
@@ -11,6 +13,8 @@ import (
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 )
 
+// loadTestSessions loads the test sessions from a JSON file.
+// It takes the path to the JSON file as input and returns a ChatNextWebStore and an error.
 func loadTestSessions(jsonPath string) (exporter.ChatNextWebStore, error) {
 	file, err := os.Open(jsonPath)
 	if err != nil {
@@ -28,6 +32,8 @@ func loadTestSessions(jsonPath string) (exporter.ChatNextWebStore, error) {
 }
 
 // TestProcessCSVOption tests the processCSVOption function.
+// It loads the session data from a JSON file, mocks user input, captures the standard output,
+// calls the function being tested, and asserts the expected output.
 func TestProcessCSVOption(t *testing.T) {
 	// Load the session data from the JSON file
 	sessions, err := loadTestSessions("testing.json")
@@ -79,6 +85,7 @@ func TestProcessCSVOption(t *testing.T) {
 }
 
 // TestPromptForInput tests the promptForInput function.
+// It mocks user input, calls the function being tested, and asserts the expected result.
 func TestPromptForInput(t *testing.T) {
 	input := "test input\n"
 	reader := bufio.NewReader(strings.NewReader(input))

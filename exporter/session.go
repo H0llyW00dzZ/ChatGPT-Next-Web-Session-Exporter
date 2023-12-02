@@ -131,25 +131,35 @@ type ChatNextWebStore struct {
 // a ChatNextWebStore struct. It returns an error if the file cannot be opened, the JSON
 // is invalid, or the JSON format does not match the expected ChatNextWebStore format.
 func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
+	// Variable `store` is of type ChatNextWebStore. It is used to store the unmarshaled JSON data.
 	var store ChatNextWebStore
 
+	// Variable `file` is of type *os.File. It holds the pointer to the opened JSON file.
+	// Variable `err` is of type error. It is used to capture any errors that occur during the file opening and JSON decoding process.
 	file, err := os.Open(filePath)
 	if err != nil {
+		// If an error occurs while opening the file, the function returns the empty `store` and the error.
 		return store, err
 	}
+	// Defer the closing of the file until the function exits.
+	// This ensures that the file is closed properly to free resources and avoid leaks.
 	defer file.Close()
 
+	// Variable `decoder` is of type *json.Decoder. It is used to decode the JSON file into the `store` struct.
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&store)
 	if err != nil {
+		// If an error occurs during decoding, the function returns the empty `store` and the error.
 		return store, err
 	}
 
-	// Check if the store.ChatNextWebStore.Sessions is nil, which indicates the JSON was not in the expected format.
+	// Check if the `Sessions` field in `store.ChatNextWebStore` is nil, which indicates the JSON was not in the expected format.
 	if store.ChatNextWebStore.Sessions == nil {
+		// If the JSON format is incorrect, the function returns the empty `store` and a format error.
 		return store, fmt.Errorf("JSON does not match the expected format chat-next-web-store")
 	}
 
+	// If no error occurs, the function returns the populated `store` and a nil error.
 	return store, nil
 }
 
