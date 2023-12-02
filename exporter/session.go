@@ -18,7 +18,7 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	csvData, err := exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline)
+//	csvData, err := exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -44,15 +44,12 @@
 package exporter
 
 import (
-	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/olekukonko/tablewriter"
 )
 
 // StringOrInt is a custom type to handle JSON values that can be either strings or integers (Magic Golang 🎩 🪄).
@@ -156,145 +153,69 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	return store, nil
 }
 
-// printLine is a helper function used to print a line in a table.
-func printLine(widths []int) {
-	for _, w := range widths {
-		fmt.Printf("+-%s-", strings.Repeat("-", w))
-	}
-	fmt.Println("+")
-}
-
-// printTable prints a formatted table given headers and data. It uses the widths
-// of the headers to determine the column sizes and can be limited to a certain
-// number of rows.
-func printTable(headers []string, data [][]string, numRows int) {
-	widths := make([]int, len(headers))
-	for i, header := range headers {
-		widths[i] = len(header)
-	}
-	for _, row := range data {
-		for i, cell := range row {
-			if len(cell) > widths[i] {
-				widths[i] = len(cell)
-			}
-		}
-	}
-
-	printLine(widths)
-	for i, header := range headers {
-		fmt.Printf("| %-*s ", widths[i], header)
-	}
-	fmt.Println("|")
-	printLine(widths)
-
-	for rowIndex, row := range data {
-		if numRows >= 0 && rowIndex >= numRows {
-			break
-		}
-		for i, cell := range row {
-			fmt.Printf("| %-*s ", widths[i], cell)
-		}
-		fmt.Println("|")
-	}
-	printLine(widths)
-}
-
-// ConvertSessionsToCSV converts a slice of Session objects into a CSV formatted string.
-// It can format the CSV data in different ways based on the formatOption parameter.
+// ConvertSessionsToCSV writes a slice of Session objects into a CSV file.
+// It formats the CSV data in different ways based on the formatOption parameter.
 // It returns an error if the format option is invalid or if writing the CSV data fails.
-func ConvertSessionsToCSV(sessions []Session, formatOption int) (string, error) {
-	var (
-		csvData [][]string
-		headers []string
-	)
+func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath string) error {
+	outputFile, err := os.Create(outputFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create output CSV file: %w", err)
+	}
+	defer outputFile.Close()
 
+	csvWriter := csv.NewWriter(outputFile)
+	defer csvWriter.Flush()
+
+	// Define headers based on the formatOption
+	var headers []string
 	switch formatOption {
 	case 1: // Inline Formatting
 		headers = []string{"id", "topic", "memoryPrompt", "messages"}
-		for _, session := range sessions {
+	case 2: // One Message Per Line
+		headers = []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}
+	case 4: // JSON String in CSV
+		headers = []string{"id", "topic", "memoryPrompt", "messages"}
+	default:
+		return fmt.Errorf("invalid format option")
+	}
+
+	// Write the headers to the CSV
+	if err := csvWriter.Write(headers); err != nil {
+		return fmt.Errorf("failed to write headers to CSV: %w", err)
+	}
+
+	// Write each session to the CSV based on the selected format
+	for _, session := range sessions {
+		var sessionData []string
+		switch formatOption {
+		case 1: // Inline Formatting
 			var messageContents []string
 			for _, message := range session.Messages {
 				messageContents = append(messageContents, fmt.Sprintf("[%s, %s] \"%s\"", message.Role, message.Date, message.Content))
 			}
-			sessionData := []string{
-				session.ID, session.Topic, session.MemoryPrompt, strings.Join(messageContents, "; "),
-			}
-			csvData = append(csvData, sessionData)
-		}
-
-	case 2: // One Message Per Line
-		headers = []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}
-		for _, session := range sessions {
+			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, strings.Join(messageContents, "; ")}
+		case 2: // One Message Per Line
 			for _, message := range session.Messages {
-				sessionData := []string{
-					session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt,
+				sessionData = []string{session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt}
+				if err := csvWriter.Write(sessionData); err != nil {
+					return fmt.Errorf("failed to write session data to CSV: %w", err)
 				}
-				csvData = append(csvData, sessionData)
 			}
-		}
-
-	case 4: // JSON String in CSV
-		headers = []string{"id", "topic", "memoryPrompt", "messages"}
-		for _, session := range sessions {
+			continue // Skip the default write for this format option
+		case 4: // JSON String in CSV
 			messagesJSON, err := json.Marshal(session.Messages)
 			if err != nil {
-				return "", err
+				return fmt.Errorf("failed to marshal messages to JSON: %w", err)
 			}
-			sessionData := []string{
-				session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON),
-			}
-			csvData = append(csvData, sessionData)
+			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON)}
 		}
-
-	default:
-		return "", fmt.Errorf("invalid format option")
-	}
-
-	// Ask the user if they want to display the table
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Do you want to display the table? (yes/no): ")
-	displayTable, _ := reader.ReadString('\n')
-	displayTable = strings.TrimSpace(displayTable)
-
-	if displayTable == "yes" {
-		// Ask the user how many messages to display
-		fmt.Print("How many messages do you want to display in the table? (Enter a number): ")
-		numMessagesStr, _ := reader.ReadString('\n')
-		numMessagesStr = strings.TrimSpace(numMessagesStr)
-		numMessages, err := strconv.Atoi(numMessagesStr)
-
-		// If the conversion fails, print an error and skip displaying the table
-		if err != nil {
-			fmt.Println("Invalid number. Skipping table display.")
-		} else {
-			// Using tablewriter to print the table
-			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader(headers)
-			table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})
-			table.SetCenterSeparator("|")
-
-			// Append up to numMessages rows
-			for i, v := range csvData {
-				if i >= numMessages {
-					break
-				}
-				table.Append(v)
-			}
-			table.Render() // Send output
+		// Write the session data to the CSV
+		if err := csvWriter.Write(sessionData); err != nil {
+			return fmt.Errorf("failed to write session data to CSV: %w", err)
 		}
 	}
 
-	csvString := &strings.Builder{}
-	csvWriter := csv.NewWriter(csvString)
-	if err := csvWriter.Write(headers); err != nil {
-		return "", err
-	}
-	if err := csvWriter.WriteAll(csvData); err != nil {
-		return "", err
-	}
-	csvWriter.Flush()
-
-	return csvString.String(), nil
+	return nil
 }
 
 // CreateSeparateCSVFiles creates two separate CSV files for sessions and messages from

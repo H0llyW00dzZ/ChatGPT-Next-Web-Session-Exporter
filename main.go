@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	exporter "github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 )
 
 func main() {
@@ -65,6 +65,11 @@ func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 		return
 	}
 
+	csvFileName := ""
+	if formatOption != 3 {
+		csvFileName = promptForInput(reader, "Enter the name of the CSV file to save: ")
+	}
+
 	switch formatOption {
 	case 3:
 		sessionsFileName := promptForInput(reader, "Enter the name of the sessions CSV file to save: ")
@@ -79,12 +84,12 @@ func processCSVOption(reader *bufio.Reader, sessions []exporter.Session) {
 		fmt.Printf("Sessions data saved to %s\n", sessionsFileName)
 		fmt.Printf("Messages data saved to %s\n", messagesFileName)
 	default:
-		csvOutput, err := exporter.ConvertSessionsToCSV(sessions, formatOption)
+		err := exporter.ConvertSessionsToCSV(sessions, formatOption, csvFileName)
 		if err != nil {
 			fmt.Printf("Failed to convert sessions to CSV: %s\n", err)
 			return
 		}
-		saveToFile(reader, csvOutput, "CSV")
+		fmt.Printf("CSV output saved to %s\n", csvFileName)
 	}
 }
 
@@ -122,6 +127,6 @@ func saveToFile(reader *bufio.Reader, content string, fileType string) {
 			fmt.Printf("Failed to write to the %s file: %s\n", fileType, err)
 			return
 		}
-		fmt.Printf("%s output saved to %s\n", strings.Title(fileType), fileName)
+		fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
 	}
 }
