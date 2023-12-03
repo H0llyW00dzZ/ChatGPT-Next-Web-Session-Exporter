@@ -1,16 +1,39 @@
 // Package exporter provides tools for extracting and converting chat session data
-// from JSON files into various formats, such as CSV and JSON datasets. This package
-// facilitates tasks like data visualization, reporting, and machine learning data preparation.
+// from JSON files into various formats, such as CSV and JSON datasets.
+//
+// This package facilitates tasks like data visualization, reporting, and machine learning data preparation.
 //
 // The exporter package defines types to represent chat sessions, messages, and associated metadata.
+//
 // It includes functions to:
-// - Read chat session data from JSON files
-// - Convert sessions to CSV with different formatting options
-// - Create separate CSV files for sessions and messages
-// - Extract sessions to a JSON format for Hugging Face datasets
+//
+//   - Read chat session data from JSON files
+//   - Convert sessions to CSV with different formatting options
+//   - Create separate CSV files for sessions and messages
+//   - Extract sessions to a JSON format for Hugging Face datasets
 //
 // The package also handles fields in the source JSON that may be represented as either
 // strings or integers by using the custom StringOrInt type.
+//
+// Code:
+//
+//	func (soi *StringOrInt) UnmarshalJSON(data []byte) error {
+//		// Try unmarshalling into a string
+//		var s string
+//		if err := json.Unmarshal(data, &s); err != nil {
+//			// If there is an error, try unmarshalling into an int
+//			var i int64
+//			if err := json.Unmarshal(data, &i); err != nil {
+//				return err // Return the error if it is not a string or int
+//			}
+//			// Convert int to string and assign it to the custom type
+//			*soi = StringOrInt(strconv.FormatInt(i, 10))
+//			return nil
+//		}
+//		// If no error, assign the string value to the custom type
+//		*soi = StringOrInt(s)
+//		return nil
+//	}
 //
 // Usage examples:
 //
@@ -39,9 +62,6 @@
 //	    log.Fatal(err)
 //	}
 //	fmt.Println(datasetJSON)
-//
-// The package supports handling of IDs and other fields that may be represented as either
-// strings or integers in the source JSON by using the custom StringOrInt type.
 package exporter
 
 import (
@@ -54,6 +74,7 @@ import (
 )
 
 // StringOrInt is a custom type to handle JSON values that can be either strings or integers (Magic Golang 🎩 🪄).
+//
 // It implements the Unmarshaler interface to handle this mixed type when unmarshaling JSON data.
 type StringOrInt string
 
@@ -128,8 +149,9 @@ type ChatNextWebStore struct {
 	ChatNextWebStore Store `json:"chat-next-web-store"`
 }
 
-// ReadJSONFromFile reads a JSON file from the given file path and unmarshals it into
-// a ChatNextWebStore struct. It returns an error if the file cannot be opened, the JSON
+// ReadJSONFromFile reads a JSON file from the given file path and unmarshals it into a ChatNextWebStore struct.
+//
+// It returns an error if the file cannot be opened, the JSON
 // is invalid, or the JSON format does not match the expected ChatNextWebStore format.
 func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	// Variable `store` is of type ChatNextWebStore. It is used to store the unmarshaled JSON data.
@@ -165,7 +187,9 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 }
 
 // ConvertSessionsToCSV writes a slice of Session objects into a CSV file.
+//
 // It formats the CSV data in different ways based on the formatOption parameter.
+//
 // It returns an error if the format option is invalid or if writing the CSV data fails.
 func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath string) error {
 	outputFile, err := os.Create(outputFilePath)
@@ -229,11 +253,13 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 	return nil
 }
 
-// CreateSeparateCSVFiles creates two separate CSV files for sessions and messages from
-// a slice of Session objects. It takes the file names as parameters and returns an error
-// if the files cannot be created or if writing the data fails. Errors from closing files
-// or flushing data to the CSV writers are captured and will be returned after all operations
-// are attempted. Error messages are logged to the console.
+// CreateSeparateCSVFiles creates two separate CSV files for sessions and messages from a slice of Session objects.
+//
+// It takes the file names as parameters and returns an error if the files cannot be created or if writing the data fails.
+//
+// Errors from closing files or flushing data to the CSV writers are captured and will be returned after all operations are attempted.
+//
+// Error messages are logged to the console.
 func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) (err error) {
 	// Create CSV file for sessions
 	sessionsFile, err := os.Create(sessionsFileName)
@@ -330,9 +356,9 @@ func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, message
 	return nil
 }
 
-// ExtractToDataset converts a slice of Session objects into a JSON formatted string
-// suitable for use as a dataset in machine learning applications. It returns an error
-// if marshaling the sessions into JSON format fails.
+// ExtractToDataset converts a slice of Session objects into a JSON formatted string suitable for use as a dataset in machine learning applications.
+//
+// It returns an error if marshaling the sessions into JSON format fails.
 func ExtractToDataset(sessions []Session) (string, error) {
 	dataset := make(map[string][]Session)
 	dataset["dataset"] = sessions
