@@ -84,7 +84,7 @@ You will be asked to provide the path to your JSON file and to choose your prefe
 
 To use the Go program (`main.go`), follow these steps:
 
-1. Clone the repository or download the `main.go` file.
+1. Clone the repository or download from [Latest](https://github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/releases) release.
 2. Ensure you have Go installed on your system. You can download it from [the official Go website](https://go.dev/dl/).
 3. Navigate to the directory containing `main.go` in a terminal.
 4. Compile the program using Go:
