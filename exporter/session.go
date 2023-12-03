@@ -1,16 +1,18 @@
-// Package exporter provides tools for extracting chat session data from JSON files
-// and converting it into various formats such as CSV and JSON datasets. This package
-// is designed to facilitate the analysis and processing of chat data, making it easier
-// to perform tasks such as data visualization, reporting, or feeding the data into
-// machine learning models.
+// Package exporter provides tools for extracting and converting chat session data
+// from JSON files into various formats, such as CSV and JSON datasets. This package
+// facilitates tasks like data visualization, reporting, and machine learning data preparation.
 //
-// The exporter package defines several types to represent chat sessions, messages,
-// and associated metadata. It also includes functions to read chat session data from
-// JSON files, convert sessions to CSV with different formatting options, create separate
-// CSV files for sessions and messages, and extract sessions to a JSON format suitable
-// for use with Hugging Face datasets.
+// The exporter package defines types to represent chat sessions, messages, and associated metadata.
+// It includes functions to:
+// - Read chat session data from JSON files
+// - Convert sessions to CSV with different formatting options
+// - Create separate CSV files for sessions and messages
+// - Extract sessions to a JSON format for Hugging Face datasets
 //
-// Usage:
+// The package also handles fields in the source JSON that may be represented as either
+// strings or integers by using the custom StringOrInt type.
+//
+// Usage examples:
 //
 // To read chat sessions from a JSON file and convert them to a CSV format:
 //
@@ -18,15 +20,14 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	csvData, err := exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
+//	err = exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	fmt.Println(csvData)
 //
 // To create separate CSV files for sessions and messages:
 //
-//	err := exporter.CreateSeparateCSVFiles(store.ChatNextWebStore.Sessions, "sessions.csv", "messages.csv")
+//	err = exporter.CreateSeparateCSVFiles(store.ChatNextWebStore.Sessions, "sessions.csv", "messages.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -230,17 +231,42 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 
 // CreateSeparateCSVFiles creates two separate CSV files for sessions and messages from
 // a slice of Session objects. It takes the file names as parameters and returns an error
-// if the files cannot be created or if writing the data fails.
-func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) error {
+// if the files cannot be created or if writing the data fails. Errors from closing files
+// or flushing data to the CSV writers are captured and will be returned after all operations
+// are attempted. Error messages are logged to the console.
+func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) (err error) {
 	// Create CSV file for sessions
 	sessionsFile, err := os.Create(sessionsFileName)
 	if err != nil {
 		return err
 	}
-	defer sessionsFile.Close()
+	// this a suggestion by AI LMAO, and this actually right.
+	defer func() {
+		if cerr := sessionsFile.Close(); cerr != nil {
+			// Handle the close error
+			// If err is nil, assign cerr to err, else log cerr
+			if err == nil {
+				err = cerr
+			} else {
+				fmt.Printf("failed to close sessions file: %v", cerr)
+			}
+		}
+	}()
 
 	sessionsWriter := csv.NewWriter(sessionsFile)
-	defer sessionsWriter.Flush()
+	// this a suggestion by AI LMAO, and this actually right.
+	defer func() {
+		sessionsWriter.Flush()
+		if cerr := sessionsWriter.Error(); cerr != nil {
+			// Handle the close error
+			// If err is nil, assign cerr to err, else log cerr
+			if err == nil {
+				err = cerr
+			} else {
+				fmt.Printf("failed to flush sessions data: %v", cerr)
+			}
+		}
+	}()
 
 	sessionsHeaders := []string{"id", "topic", "memoryPrompt"} // Add other headers as needed
 	if err := sessionsWriter.Write(sessionsHeaders); err != nil {
@@ -260,10 +286,31 @@ func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, message
 	if err != nil {
 		return err
 	}
-	defer messagesFile.Close()
+	defer func() {
+		if cerr := messagesFile.Close(); cerr != nil {
+			// Handle the close error
+			// If err is nil, assign cerr to err, else log cerr
+			if err == nil {
+				err = cerr
+			} else {
+				fmt.Printf("failed to close messages file: %v", cerr)
+			}
+		}
+	}()
 
 	messagesWriter := csv.NewWriter(messagesFile)
-	defer messagesWriter.Flush()
+	defer func() {
+		messagesWriter.Flush()
+		if cerr := messagesWriter.Error(); cerr != nil {
+			// Handle the close error
+			// If err is nil, assign cerr to err, else log cerr
+			if err == nil {
+				err = cerr
+			} else {
+				fmt.Printf("failed to flush messages data: %v", cerr)
+			}
+		}
+	}()
 
 	messagesHeaders := []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}
 	if err := messagesWriter.Write(messagesHeaders); err != nil {
