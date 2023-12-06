@@ -1,5 +1,6 @@
 // Package repairdata provides utilities for transforming JSON data from an old format to a new format.
-// It specifically adds a 'systemprompt' field within the 'modelConfig' field of session data.
+//
+// It specifically ensures that each session's modelConfig contains a 'systemprompt' field.
 package repairdata
 
 import (
@@ -14,6 +15,7 @@ import (
 type StringOrInt string
 
 // UnmarshalJSON is a custom unmarshaler for StringOrInt that tries to unmarshal JSON data
+//
 // as a string, and if that fails, as an integer, which is then converted to a string.
 func (soi *StringOrInt) UnmarshalJSON(data []byte) error {
 	// Try unmarshalling into a string
@@ -33,40 +35,26 @@ func (soi *StringOrInt) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// OldData represents the structure of the old JSON data.
+// OldData represents the structure of the old JSON data format.
+//
+// Additional fields can be added to match the complete old JSON structure as needed.
 type OldData struct {
 	ChatNextWebStore struct {
-		Sessions []struct {
-			ID                 string    `json:"id"`
-			Topic              string    `json:"topic"`
-			MemoryPrompt       string    `json:"memoryPrompt"`
-			Messages           []Message `json:"messages"`
-			Stat               Stat      `json:"stat"`
-			LastUpdate         int64     `json:"lastUpdate"`
-			LastSummarizeIndex int       `json:"lastSummarizeIndex"`
-			Mask               *Mask     `json:"mask"`
-		} `json:"sessions"`
-		CurrentSessionIndex int `json:"currentSessionIndex"`
-		LastUpdateTime      int `json:"lastUpdateTime"`
+		Sessions            []Session `json:"sessions"`
+		CurrentSessionIndex int       `json:"currentSessionIndex"`
+		LastUpdateTime      int64     `json:"lastUpdateTime"`
 	} `json:"chat-next-web-store"`
 	// Include other fields from the old JSON format...
 }
 
-// NewData represents the structure of the new JSON data.
+// NewData represents the structure of the new JSON data format.
+//
+// Additional fields can be added to match the complete new JSON structure as needed.
 type NewData struct {
 	ChatNextWebStore struct {
-		Sessions []struct {
-			ID                 string    `json:"id"`
-			Topic              string    `json:"topic"`
-			MemoryPrompt       string    `json:"memoryPrompt"`
-			Messages           []Message `json:"messages"`
-			Stat               Stat      `json:"stat"`
-			LastUpdate         int64     `json:"lastUpdate"`
-			LastSummarizeIndex int       `json:"lastSummarizeIndex"`
-			Mask               *Mask     `json:"mask"`
-		} `json:"sessions"`
-		CurrentSessionIndex int `json:"currentSessionIndex"`
-		LastUpdateTime      int `json:"lastUpdateTime"`
+		Sessions            []Session `json:"sessions"`
+		CurrentSessionIndex int       `json:"currentSessionIndex"`
+		LastUpdateTime      int64     `json:"lastUpdateTime"`
 	} `json:"chat-next-web-store"`
 	// Include other fields from the new JSON format...
 }
@@ -129,6 +117,20 @@ type SystemPrompt struct {
 }
 
 // RepairSessionData takes a byte slice of the old JSON format and returns a byte slice of the new JSON format.
+type Session struct {
+	ID                 string    `json:"id"`
+	Topic              string    `json:"topic"`
+	MemoryPrompt       string    `json:"memoryPrompt"`
+	Messages           []Message `json:"messages"`
+	Stat               Stat      `json:"stat"`
+	LastUpdate         int64     `json:"lastUpdate"`
+	LastSummarizeIndex int       `json:"lastSummarizeIndex"`
+	Mask               *Mask     `json:"mask"`
+}
+
+// RepairSessionData transforms JSON data from the old format to the new format.
+//
+// It adds a 'systemprompt' field to the 'modelConfig' within each session if it is missing.
 func RepairSessionData(oldDataBytes []byte) ([]byte, error) {
 	var oldData OldData
 	err := json.Unmarshal(oldDataBytes, &oldData)
@@ -137,12 +139,13 @@ func RepairSessionData(oldDataBytes []byte) ([]byte, error) {
 	}
 
 	// Initialize the new data structure with the old data.
-	newData := NewData(oldData)
-
+	newData := NewData{
+		ChatNextWebStore: oldData.ChatNextWebStore,
+	}
 	// Iterate through the sessions to copy and transform each one.
-	for i, oldSession := range oldData.ChatNextWebStore.Sessions {
+	for i, session := range newData.ChatNextWebStore.Sessions {
 		// Check if the systemprompt field is missing and add it if necessary.
-		if oldSession.Mask != nil && oldSession.Mask.ModelConfig != nil && oldSession.Mask.ModelConfig.SystemPrompt == nil {
+		if session.Mask != nil && session.Mask.ModelConfig != nil && session.Mask.ModelConfig.SystemPrompt == nil {
 			newData.ChatNextWebStore.Sessions[i].Mask.ModelConfig.SystemPrompt = &SystemPrompt{
 				Default: "\nYou are ChatGPT, a large language model trained by OpenAI.\nKnowledge cutoff: {{cutoff}}\nCurrent model: {{model}}\nCurrent time: {{time}}\nLatex inline: $x^2$ \nLatex block: $$e=mc^2$$\n",
 			}
@@ -150,7 +153,7 @@ func RepairSessionData(oldDataBytes []byte) ([]byte, error) {
 	}
 
 	// Marshal the new data into JSON bytes.
-	newDataBytes, err := json.Marshal(newData)
+	newDataBytes, err := json.MarshalIndent(newData, "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +161,8 @@ func RepairSessionData(oldDataBytes []byte) ([]byte, error) {
 	return newDataBytes, nil
 }
 
-// Helper function to convert Unix milliseconds to time.Time.
+// Helper function millisToTime converts Unix milliseconds to a time.Time object.
+// This is used to handle date and time fields in the JSON data that are represented as Unix millisecond timestamps.
 func millisToTime(ms int64) time.Time {
 	return time.Unix(0, ms*int64(time.Millisecond))
 }
