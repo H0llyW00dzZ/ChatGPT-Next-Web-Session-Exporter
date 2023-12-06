@@ -49,6 +49,8 @@ func main() {
 
 		// Update the jsonFilePath to the new repaired file path
 		jsonFilePath = newFilePath
+		// exit the program after repairing the data
+		os.Exit(1)
 	}
 
 	// Continue processing with the jsonFilePath (which is either the original or the repaired file)
