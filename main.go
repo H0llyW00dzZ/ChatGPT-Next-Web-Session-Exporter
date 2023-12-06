@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/repairdata"
 )
 
 // main is the entry point of the CLI tool.
@@ -20,6 +21,28 @@ func main() {
 	// Get the JSON file path from the user
 	jsonFilePath := promptForInput(reader, "Enter the path to the JSON file: ")
 
+	// Read the old JSON content from the file
+	oldJSONBytes, err := os.ReadFile(jsonFilePath)
+	if err != nil {
+		fmt.Printf("Error reading the JSON file: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Repair the old JSON data using the repairdata package
+	newJSONBytes, err := repairdata.RepairSessionData(oldJSONBytes)
+	if err != nil {
+		fmt.Printf("Error repairing the JSON data: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Write the repaired JSON data to a new file
+	newFilePath := strings.TrimSuffix(jsonFilePath, ".json") + "_repaired.json"
+	err = os.WriteFile(newFilePath, newJSONBytes, 0644)
+	if err != nil {
+		fmt.Printf("Error writing the new JSON data to file: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Repaired JSON data has been saved to: %s\n", newFilePath)
 	// Read the JSON content using the exporter package
 	store, err := exporter.ReadJSONFromFile(jsonFilePath)
 	if err != nil {
