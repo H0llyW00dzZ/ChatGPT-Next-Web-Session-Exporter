@@ -79,11 +79,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-        # note: this useless only for compiled language
+        # note: this useless because in CodeQL about dependencies it's only for compiled language or python
       - name: Install JavaScript/TypeScript dependencies
         if: ${{ matrix.language == 'javascript' && matrix.fileExists }}
         run: npm ci
-        # note: ignore that warning in `setup up go` because this repo are using standard go module, so go.sum not really needed lol
+        # note: ignore that warning in `setup up go` because this repo are using standard library, so go.sum not really needed lol
       - name: Set up Go
         if: ${{ matrix.language == 'go' }}
         uses: actions/setup-go@v4
