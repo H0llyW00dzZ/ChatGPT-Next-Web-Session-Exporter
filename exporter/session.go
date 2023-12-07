@@ -253,6 +253,74 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 	return nil
 }
 
+// WriteHeaders writes the provided headers to the csv.Writer.
+func WriteHeaders(csvWriter *csv.Writer, headers []string) error {
+	if err := csvWriter.Write(headers); err != nil {
+		return fmt.Errorf("failed to write headers: %w", err)
+	}
+	return nil
+}
+
+// WriteSessionData writes session data to the provided csv.Writer.
+func WriteSessionData(csvWriter *csv.Writer, sessions []Session) error {
+	for _, session := range sessions {
+		sessionData := []string{
+			session.ID, session.Topic, session.MemoryPrompt,
+		}
+		if err := csvWriter.Write(sessionData); err != nil {
+			return fmt.Errorf("failed to write session data: %w", err)
+		}
+	}
+	return nil
+}
+
+// WriteMessageData writes message data to the provided csv.Writer.
+func WriteMessageData(csvWriter *csv.Writer, sessions []Session) error {
+	for _, session := range sessions {
+		for _, message := range session.Messages {
+			messageData := []string{
+				session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt,
+			}
+			if err := csvWriter.Write(messageData); err != nil {
+				return fmt.Errorf("failed to write message data: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// initializeCSVFile creates and initializes a CSV file with the given name and headers.
+func initializeCSVFile(fileName string, headers []string) (*os.File, *csv.Writer, error) {
+	file, err := os.Create(fileName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create file %s: %w", fileName, err)
+	}
+
+	csvWriter := csv.NewWriter(file)
+
+	if err := WriteHeaders(csvWriter, headers); err != nil {
+		file.Close() // ignore error; we're already handling an error
+		return nil, nil, err
+	}
+
+	return file, csvWriter, nil
+}
+
+// closeCSVWriter closes the csv.Writer and the underlying file, and checks for errors.
+func closeCSVWriter(csvWriter *csv.Writer, file *os.File) error {
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		file.Close() // ignore error; we're already handling an error
+		return fmt.Errorf("failed to flush data: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close file: %w", err)
+	}
+
+	return nil
+}
+
 // CreateSeparateCSVFiles creates two separate CSV files for sessions and messages from a slice of Session objects.
 //
 // It takes the file names as parameters and returns an error if the files cannot be created or if writing the data fails.
@@ -260,97 +328,29 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 // Errors from closing files or flushing data to the CSV writers are captured and will be returned after all operations are attempted.
 //
 // Error messages are logged to the console.
-func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) (err error) {
-	// Create CSV file for sessions
-	sessionsFile, err := os.Create(sessionsFileName)
+func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) error {
+	// Create and initialize the sessions CSV file.
+	sessionsFile, sessionsWriter, err := initializeCSVFile(sessionsFileName, []string{"id", "topic", "memoryPrompt"})
 	if err != nil {
 		return err
 	}
-	// this a suggestion by AI LMAO, and this actually right.
-	defer func() {
-		if cerr := sessionsFile.Close(); cerr != nil {
-			// Handle the close error
-			// If err is nil, assign cerr to err, else log cerr
-			if err == nil {
-				err = cerr
-			} else {
-				fmt.Printf("failed to close sessions file: %v", cerr)
-			}
-		}
-	}()
+	defer closeCSVWriter(sessionsWriter, sessionsFile) // Simplified error handling
 
-	sessionsWriter := csv.NewWriter(sessionsFile)
-	// this a suggestion by AI LMAO, and this actually right.
-	defer func() {
-		sessionsWriter.Flush()
-		if cerr := sessionsWriter.Error(); cerr != nil {
-			// Handle the close error
-			// If err is nil, assign cerr to err, else log cerr
-			if err == nil {
-				err = cerr
-			} else {
-				fmt.Printf("failed to flush sessions data: %v", cerr)
-			}
-		}
-	}()
-
-	sessionsHeaders := []string{"id", "topic", "memoryPrompt"} // Add other headers as needed
-	if err := sessionsWriter.Write(sessionsHeaders); err != nil {
+	// Write session data.
+	if err := WriteSessionData(sessionsWriter, sessions); err != nil {
 		return err
 	}
-	for _, session := range sessions {
-		sessionData := []string{
-			session.ID, session.Topic, session.MemoryPrompt,
-		}
-		if err := sessionsWriter.Write(sessionData); err != nil {
-			return err
-		}
-	}
 
-	// Create CSV file for messages
-	messagesFile, err := os.Create(messagesFileName)
+	// Create and initialize the messages CSV file.
+	messagesFile, messagesWriter, err := initializeCSVFile(messagesFileName, []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"})
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := messagesFile.Close(); cerr != nil {
-			// Handle the close error
-			// If err is nil, assign cerr to err, else log cerr
-			if err == nil {
-				err = cerr
-			} else {
-				fmt.Printf("failed to close messages file: %v", cerr)
-			}
-		}
-	}()
+	defer closeCSVWriter(messagesWriter, messagesFile) // Simplified error handling
 
-	messagesWriter := csv.NewWriter(messagesFile)
-	defer func() {
-		messagesWriter.Flush()
-		if cerr := messagesWriter.Error(); cerr != nil {
-			// Handle the close error
-			// If err is nil, assign cerr to err, else log cerr
-			if err == nil {
-				err = cerr
-			} else {
-				fmt.Printf("failed to flush messages data: %v", cerr)
-			}
-		}
-	}()
-
-	messagesHeaders := []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}
-	if err := messagesWriter.Write(messagesHeaders); err != nil {
+	// Write message data.
+	if err := WriteMessageData(messagesWriter, sessions); err != nil {
 		return err
-	}
-	for _, session := range sessions {
-		for _, message := range session.Messages {
-			messageData := []string{
-				session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt,
-			}
-			if err := messagesWriter.Write(messageData); err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
