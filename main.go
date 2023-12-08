@@ -49,7 +49,8 @@ func main() {
 
 	if strings.ToLower(repairData) == "yes" {
 		// Attempt to repair the provided JSON data.
-		newFilePath, err := repairJSONData(jsonFilePath)
+		// Pass the context to the repairJSONData function.
+		newFilePath, err := repairJSONData(ctx, jsonFilePath)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
 			os.Exit(1)
@@ -216,45 +217,30 @@ func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileT
 
 // repairJSONData attempts to repair the JSON data at the provided file path and returns the path to the repaired file.
 // This function is not context-aware as it performs a single, typically quick operation.
-func repairJSONData(jsonFilePath string) (string, error) {
-	oldJSONBytes, err := os.ReadFile(jsonFilePath)
-	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+func repairJSONData(ctx context.Context, jsonFilePath string) (string, error) {
+	// Check if the context is already done before starting the operation.
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+		// Continue if the context is not cancelled.
 	}
 
+	oldJSONBytes, err := os.ReadFile(jsonFilePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Simulate a context-aware operation (since os.ReadFile is not context-aware).
 	newJSONBytes, err := repairdata.RepairSessionData(oldJSONBytes)
 	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+		return "", err
 	}
 
 	newFilePath := strings.TrimSuffix(jsonFilePath, ".json") + "_repaired.json"
 	err = os.WriteFile(newFilePath, newJSONBytes, 0644)
 	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+		return "", err
 	}
 
 	return newFilePath, nil
