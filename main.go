@@ -62,16 +62,21 @@ func main() {
 }
 
 // setupSignalHandling configures the application to respond to interrupt signals for
-// graceful shutdown, utilizing the provided cancel function to terminate operations.
+// graceful shutdown. It utilizes the provided cancel function to terminate operations
+// when an interrupt signal (SIGINT) or termination signal (SIGTERM) is received.
+// The function uses a goroutine and a channel to listen for these signals, ensuring
+// that the signal handling does not block the main execution flow of the program.
 func setupSignalHandling(cancel context.CancelFunc) {
 	// Prepare a channel to listen for system interrupt signals.
 	signals := make(chan os.Signal, 1)
+	// Register the channel to receive notification of SIGINT and SIGTERM signals.
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	// Start a new goroutine that will block waiting for a signal.
 	go func() {
-		<-signals
+		<-signals // This line will block until a signal is received.
 		fmt.Println("Signal received, cancelling operations...")
-		cancel()
-		os.Exit(0) // Exit the program after cancellation
+		cancel()   // Call the context's cancel function to signal cancellation to the application.
+		os.Exit(0) // Exit the program after cancellation has been triggered.
 	}()
 }
 
