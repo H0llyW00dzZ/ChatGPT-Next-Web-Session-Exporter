@@ -1,5 +1,4 @@
-// @file_system_mock.go:
-// A mock implementation of the FileSystem interface for testing purposes.
+// Package filesystem provides a mock implementation of the FileSystem interface for testing.
 package filesystem
 
 import (
@@ -7,31 +6,33 @@ import (
 	"os"
 )
 
-// MockFileSystem is a mock implementation of the FileSystem interface for testing purposes.
+// MockFileSystem is a mock implementation of the FileSystem interface that can be used in tests.
+// It tracks the file operations performed, such as file creation, without interacting with the actual file system.
 type MockFileSystem struct {
-	FilesCreated []string
+	FilesCreated []string // FilesCreated keeps track of the names of the files that have been "created".
 }
 
-// Stat implements FileSystem.
-// Stat returns the FileInfo for the given file name.
-// It is currently unimplemented and will panic if called.
+// Stat is part of the FileSystem interface. It is meant to return the FileInfo for the given file name.
+// In the MockFileSystem, this function is unimplemented and will panic if called, indicating the function
+// should be stubbed or the test should be structured to avoid its call.
 func (*MockFileSystem) Stat(name string) (fs.FileInfo, error) {
 	panic("unimplemented")
 }
 
-// Create simulates creating a file and records the action.
-// It takes a file name as input and returns a dummy file.
-// The file name is added to the FilesCreated slice for tracking purposes.
+// Create simulates the creation of a file by adding the provided file name to the FilesCreated slice.
+// It returns a dummy *os.File object that can be used in place of a real file in tests.
+// This allows tests to verify that a file creation operation was initiated without actually creating a file on disk.
 func (m *MockFileSystem) Create(name string) (*os.File, error) {
 	m.FilesCreated = append(m.FilesCreated, name)
-	// You can return a real file or a dummy file here depending on your testing needs.
-	// Below we're returning a dummy file to avoid actual file system interaction.
+	// Here we return a dummy file using os.NewFile. The file descriptor 0 signifies that this is not associated
+	// with an open file. The name is used for identification in tests.
 	return os.NewFile(0, name), nil
 }
 
-// WasCalledWith checks if Create was called with the given filename.
-// It iterates over the FilesCreated slice and returns true if the given filename is found.
-// Otherwise, it returns false.
+// WasCalledWith checks whether the Create method was called with a specific file name.
+// It returns true if the name is in the FilesCreated slice, indicating that a create operation was requested
+// for the file; otherwise, it returns false. This is useful for assertions in tests to ensure that
+// the correct file operations were performed.
 func (m *MockFileSystem) WasCalledWith(name string) bool {
 	for _, fileCreated := range m.FilesCreated {
 		if fileCreated == name {

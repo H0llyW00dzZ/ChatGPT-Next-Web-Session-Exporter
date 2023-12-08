@@ -1,29 +1,33 @@
-// @file_system.go:
-// Is implementation of the FileSystem interface
-// and a concrete implementation of the RealFileSystem type.
+// Package filesystem provides an abstraction over the native file system operations.
+//
+// This allows for easy testing and mocking of file system interactions.
 package filesystem
 
 import (
 	"os"
 )
 
-// FileSystem is an interface that defines the methods for interacting with the file system.
+// FileSystem is an interface that abstracts file system operations such as creating
+// files and retrieving file information. This allows for implementations that can
+// interact with the file system or provide mock functionality for testing purposes.
 type FileSystem interface {
 	Create(name string) (*os.File, error)
 	Stat(name string) (os.FileInfo, error)
 }
 
-// RealFileSystem is a concrete implementation of the FileSystem interface.
+// RealFileSystem implements the FileSystem interface by wrapping the os package functions,
+// thus providing an actual file system interaction mechanism.
 type RealFileSystem struct{}
 
 // Create creates a new file with the given name.
-// It returns a pointer to the created file and any error encountered.
+// It wraps the os.Create function and returns a pointer to the created file along with any error encountered.
 func (fs RealFileSystem) Create(name string) (*os.File, error) {
 	return os.Create(name)
 }
 
-// Stat returns the FileInfo structure describing the named file.
-// It returns an error if the file does not exist.
+// Stat returns the FileInfo structure describing the file named by the given name.
+// It wraps the os.Stat function and returns the FileInfo and any error encountered, for instance,
+// if the file does not exist.
 func (fs RealFileSystem) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(name)
 }
