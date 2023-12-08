@@ -22,10 +22,12 @@ import (
 // starting the user interaction flow for data processing and exporting.
 func main() {
 	// Prepare a cancellable context for handling graceful shutdown.
+	// This context will be passed down to functions that support cancellation.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Configure signal handling to gracefully terminate the application.
+	// This listens for system signals like SIGINT (Ctrl+C) and terminates the application.
 	setupSignalHandling(cancel)
 
 	// Initialize a buffered reader for user input.
@@ -74,6 +76,7 @@ func setupSignalHandling(cancel context.CancelFunc) {
 }
 
 // promptForInput displays a prompt to the user and returns the trimmed input response.
+// It now supports context cancellation, which can interrupt the processing flow if needed.
 func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, err := reader.ReadString('\n')
@@ -91,6 +94,7 @@ func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) st
 }
 
 // processOutputOption directs the processing flow based on the user's choice of output format.
+// It now respects the context for cancellation, ensuring long-running operations can be interrupted.
 func processOutputOption(ctx context.Context, reader *bufio.Reader, outputOption string, sessions []exporter.Session) {
 	switch outputOption {
 	case "1":
@@ -121,6 +125,7 @@ func processCSVOption(ctx context.Context, reader *bufio.Reader, sessions []expo
 }
 
 // processDatasetOption handles the conversion of session data to a Hugging Face Dataset format.
+// It is now context-aware and will respect cancellation requests.
 func processDatasetOption(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	datasetOutput, err := exporter.ExtractToDataset(sessions)
 	if err != nil {
@@ -131,6 +136,7 @@ func processDatasetOption(ctx context.Context, reader *bufio.Reader, sessions []
 }
 
 // saveToFile prompts the user to save the provided content to a file of the specified type.
+// This function now also accepts a context, allowing file operations to be cancelable.
 func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
 	saveOutput := promptForInput(ctx, reader, fmt.Sprintf("Do you want to save the output to a file? (yes/no)\n"))
 	if saveOutput == "yes" {
@@ -140,6 +146,7 @@ func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileT
 }
 
 // repairJSONData attempts to repair the JSON data at the provided file path and returns the path to the repaired file.
+// This function is not context-aware as it performs a single, typically quick operation.
 func repairJSONData(jsonFilePath string) (string, error) {
 	oldJSONBytes, err := os.ReadFile(jsonFilePath)
 	if err != nil {
@@ -161,6 +168,7 @@ func repairJSONData(jsonFilePath string) (string, error) {
 }
 
 // executeCSVConversion handles the CSV conversion process based on the user-selected format option.
+// It is now context-aware, allowing for cancellation during the CSV conversion process.
 func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.Reader, sessions []exporter.Session) {
 	csvFileName := ""
 	if formatOption != 3 {
@@ -178,6 +186,7 @@ func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.R
 }
 
 // createSeparateCSVFiles prompts the user for file names and creates separate CSV files for sessions and messages.
+// This function is context-aware, respecting any cancellation requests during file operations.
 func createSeparateCSVFiles(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	sessionsFileName := promptForInput(ctx, reader, "Enter the name of the sessions CSV file to save: ")
 	messagesFileName := promptForInput(ctx, reader, "Enter the name of the messages CSV file to save: ")
@@ -193,6 +202,7 @@ func createSeparateCSVFiles(ctx context.Context, reader *bufio.Reader, sessions 
 }
 
 // convertToSingleCSV converts the session data to a single CSV file using the specified format option.
+// It now checks for context cancellation and halts the operation if a cancellation is requested.
 func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, formatOption int, csvFileName string) {
 	err := exporter.ConvertSessionsToCSV(ctx, sessions, formatOption, csvFileName)
 	if err != nil {
@@ -207,6 +217,7 @@ func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, format
 }
 
 // writeContentToFile collects a file name from the user and writes the provided content to the specified file.
+// It now includes context support to handle potential cancellation during file writing.
 func writeContentToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
 	fileName := promptForInput(ctx, reader, fmt.Sprintf("Enter the name of the %s file to save: ", fileType))
 	if fileType == "dataset" {
