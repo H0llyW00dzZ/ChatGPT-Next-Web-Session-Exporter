@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strconv"
@@ -76,7 +77,11 @@ func promptForInput(reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Printf("Error reading input: %s\n", err)
+		if err == io.EOF {
+			fmt.Println("EOF encountered. Exiting program.")
+		} else {
+			fmt.Printf("Error reading input: %s\n", err)
+		}
 		os.Exit(1)
 	}
 	return strings.TrimSpace(input)
