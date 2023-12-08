@@ -90,6 +90,7 @@ func TestProcessCSVOption(t *testing.T) {
 }
 
 // TestPromptForInput tests the promptForInput function.
+// It mocks user input, calls the function being tested, and asserts the expected result.
 func TestPromptForInput(t *testing.T) {
 	input := "test input\n"
 	reader := bufio.NewReader(strings.NewReader(input))

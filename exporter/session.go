@@ -15,6 +15,9 @@
 // The package also handles fields in the source JSON that may be represented as either
 // strings or integers by using the custom StringOrInt type.
 //
+// Additionally, it now supports context-aware operations, allowing for better control
+// over long-running processes and the ability to cancel them if needed.
+//
 // Code:
 //
 //	func (soi *StringOrInt) UnmarshalJSON(data []byte) error {
@@ -37,13 +40,16 @@
 //
 // Usage examples:
 //
-// To read chat sessions from a JSON file and convert them to a CSV format:
+// To read chat sessions from a JSON file and convert them to a CSV format with context support:
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+//	defer cancel()
 //
 //	store, err := exporter.ReadJSONFromFile("path/to/chat-sessions.json")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	err = exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
+//	err = exporter.ConvertSessionsToCSV(ctx, store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -187,11 +193,16 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	return store, nil
 }
 
-// ConvertSessionsToCSV writes a slice of Session objects into a CSV file.
+// ConvertSessionsToCSV writes a slice of Session objects into a CSV file with support for context cancellation.
 //
-// It formats the CSV data in different ways based on the formatOption parameter.
+// The function takes a context.Context object as the first parameter to allow for cancellation and timeouts.
 //
-// It returns an error if the format option is invalid or if writing the CSV data fails.
+// The formatOption parameter determines how the CSV data should be formatted.
+//
+// The outputFilePath parameter specifies where to save the CSV file.
+//
+// The function returns an error if the context is cancelled, the format option is invalid,
+// or if writing the CSV data fails.
 func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption int, outputFilePath string) error {
 	outputFile, err := os.Create(outputFilePath)
 	if err != nil {
@@ -222,10 +233,13 @@ func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption 
 
 	// Write each session to the CSV based on the selected format
 	for _, session := range sessions {
+		// Check if the context has been cancelled or a deadline has been exceeded.
 		select {
 		case <-ctx.Done():
+			// If the context is cancelled, return the context's error.
 			return ctx.Err()
 		default:
+			// If the context is not cancelled, proceed with processing.
 		}
 
 		var sessionData []string
