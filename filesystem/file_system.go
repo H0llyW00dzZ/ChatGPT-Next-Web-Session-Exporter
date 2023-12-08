@@ -1,7 +1,7 @@
 // @file_system.go:
 // Is implementation of the FileSystem interface
 // and a concrete implementation of the RealFileSystem type.
-package main
+package filesystem
 
 import (
 	"os"

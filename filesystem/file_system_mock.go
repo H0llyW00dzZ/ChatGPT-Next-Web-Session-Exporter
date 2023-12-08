@@ -1,6 +1,6 @@
 // @file_system_mock.go:
 // A mock implementation of the FileSystem interface for testing purposes.
-package main
+package filesystem
 
 import (
 	"io/fs"
