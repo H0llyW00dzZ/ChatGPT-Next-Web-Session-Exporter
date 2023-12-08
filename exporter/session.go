@@ -65,6 +65,7 @@
 package exporter
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -191,7 +192,7 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 // It formats the CSV data in different ways based on the formatOption parameter.
 //
 // It returns an error if the format option is invalid or if writing the CSV data fails.
-func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath string) error {
+func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption int, outputFilePath string) error {
 	outputFile, err := os.Create(outputFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create output CSV file: %w", err)
@@ -221,6 +222,12 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 
 	// Write each session to the CSV based on the selected format
 	for _, session := range sessions {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		var sessionData []string
 		switch formatOption {
 		case 1: // Inline Formatting
@@ -245,8 +252,10 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON)}
 		}
 		// Write the session data to the CSV
-		if err := csvWriter.Write(sessionData); err != nil {
-			return fmt.Errorf("failed to write session data to CSV: %w", err)
+		if formatOption != 2 {
+			if err := csvWriter.Write(sessionData); err != nil {
+				return fmt.Errorf("failed to write session data to CSV: %w", err)
+			}
 		}
 	}
 

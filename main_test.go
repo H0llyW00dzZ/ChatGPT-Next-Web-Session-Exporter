@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -36,7 +37,7 @@ func loadTestSessions(jsonPath string) (exporter.ChatNextWebStore, error) {
 // calls the function being tested, and asserts the expected output.
 func TestProcessCSVOption(t *testing.T) {
 	// Load the session data from the JSON file
-	sessions, err := loadTestSessions("testing.json")
+	store, err := loadTestSessions("testing.json")
 	if err != nil {
 		t.Fatalf("Failed to load sessions from JSON: %v", err)
 	}
@@ -49,14 +50,20 @@ func TestProcessCSVOption(t *testing.T) {
 	r, w, _ := os.Pipe()
 	stdout := os.Stdout
 	os.Stdout = w
-	defer func() { os.Stdout = stdout }() // Restore original Stdout
+	defer func() {
+		os.Stdout = stdout // Restore original Stdout
+	}()
+
+	// Create a context that can be canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	outputBuffer := bytes.Buffer{}
 
 	// Call the function being tested
 	go func() {
-		processCSVOption(reader, sessions.ChatNextWebStore.Sessions)
-		w.Close()
+		defer w.Close()
+		processCSVOption(ctx, reader, store.ChatNextWebStore.Sessions)
 	}()
 
 	// Read from the pipe into the buffer
