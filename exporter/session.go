@@ -351,28 +351,40 @@ func closeCSVWriter(csvWriter *csv.Writer, file *os.File) error {
 // Errors from closing files or flushing data to the CSV writers are captured and will be returned after all operations are attempted.
 //
 // Error messages are logged to the console.
-func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) error {
+func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) (err error) {
 	// Create and initialize the sessions CSV file.
-	sessionsFile, sessionsWriter, err := initializeCSVFile(sessionsFileName, []string{"id", "topic", "memoryPrompt"})
+	var sessionsFile *os.File
+	var sessionsWriter *csv.Writer
+	sessionsFile, sessionsWriter, err = initializeCSVFile(sessionsFileName, []string{"id", "topic", "memoryPrompt"})
 	if err != nil {
 		return err
 	}
-	defer closeCSVWriter(sessionsWriter, sessionsFile) // Simplified error handling
+	defer func() {
+		if cerr := closeCSVWriter(sessionsWriter, sessionsFile); cerr != nil {
+			err = cerr
+		}
+	}()
 
 	// Write session data.
-	if err := WriteSessionData(sessionsWriter, sessions); err != nil {
+	if err = WriteSessionData(sessionsWriter, sessions); err != nil {
 		return err
 	}
 
 	// Create and initialize the messages CSV file.
-	messagesFile, messagesWriter, err := initializeCSVFile(messagesFileName, []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"})
+	var messagesFile *os.File
+	var messagesWriter *csv.Writer
+	messagesFile, messagesWriter, err = initializeCSVFile(messagesFileName, []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"})
 	if err != nil {
 		return err
 	}
-	defer closeCSVWriter(messagesWriter, messagesFile) // Simplified error handling
+	defer func() {
+		if cerr := closeCSVWriter(messagesWriter, messagesFile); cerr != nil {
+			err = cerr
+		}
+	}()
 
 	// Write message data.
-	if err := WriteMessageData(messagesWriter, sessions); err != nil {
+	if err = WriteMessageData(messagesWriter, sessions); err != nil {
 		return err
 	}
 

@@ -76,18 +76,13 @@ func main() {
 
 // handleInputError checks the type of error and handles it accordingly.
 func handleInputError(err error) {
-	if err == io.EOF {
-		// Handle EOF based on your application's needs.
-		fmt.Println("No more input available. Exiting program.")
-		os.Exit(0) // Exit the program on EOF
-	} else if err == context.Canceled {
-		// Handle a context cancellation, if applicable
-		fmt.Println("Operation canceled. Exiting program.")
-		os.Exit(1)
+	if err == context.Canceled || err == io.EOF {
+		// Handle a context cancellation or EOF, if applicable
+		fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+		os.Exit(0)
 	} else {
-		// Handle other types of errors
-		fmt.Printf("Error reading input: %s\n", err)
-		os.Exit(1) // Exit the program on other errors
+		fmt.Printf("\n[GopherHelper] Error reading input: %s\n", err)
+		os.Exit(1)
 	}
 }
 
@@ -103,10 +98,9 @@ func setupSignalHandling(cancel context.CancelFunc) {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	// Start a new goroutine that will block waiting for a signal.
 	go func() {
-		<-signals // This line will block until a signal is received.
-		fmt.Println("Signal received, cancelling operations...")
-		cancel()   // Call the context's cancel function to signal cancellation to the application.
-		os.Exit(0) // Exit the program after cancellation has been triggered.
+		<-signals // Wait for a signal
+		fmt.Println("\n[GopherHelper] Exiting gracefully...")
+		cancel() // Cancel the context
 	}()
 }
 
@@ -120,20 +114,7 @@ func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) (s
 	go func() {
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			// Check for an interrupt signal error and handle it.
-			if err == io.EOF {
-				select {
-				case <-ctx.Done():
-					// If the context is canceled, assume it's due to an interrupt signal.
-					fmt.Println("\n[GopherHelper] Exiting gracefully...")
-					errorChan <- ctx.Err()
-				default:
-					// Otherwise, it's a legitimate EOF.
-					errorChan <- io.EOF
-				}
-			} else {
-				errorChan <- err
-			}
+			errorChan <- err
 		} else {
 			inputChan <- input
 		}
@@ -171,13 +152,21 @@ func processCSVOption(ctx context.Context, reader *bufio.Reader, sessions []expo
 	// Prompt the user for the CSV format option
 	formatOptionStr, err := promptForInput(ctx, reader, "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n")
 	if err != nil {
-		fmt.Printf("Error reading input: %s\n", err)
-		return // Handle the error as appropriate for your application
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	formatOption, err := strconv.Atoi(formatOptionStr)
 	if err != nil {
-		fmt.Println("Invalid format option.")
+		// If the format option is not a valid number, print an error message and return.
+		fmt.Println("\nInvalid format option.")
 		return
 	}
 
@@ -190,8 +179,15 @@ func processCSVOption(ctx context.Context, reader *bufio.Reader, sessions []expo
 func processDatasetOption(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	datasetOutput, err := exporter.ExtractToDataset(sessions)
 	if err != nil {
-		fmt.Printf("Failed to extract to dataset: %s\n", err)
-		return
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 	saveToFile(ctx, reader, datasetOutput, "dataset")
 }
@@ -201,8 +197,15 @@ func processDatasetOption(ctx context.Context, reader *bufio.Reader, sessions []
 func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
 	saveOutput, err := promptForInput(ctx, reader, fmt.Sprintf("Do you want to save the output to a file? (yes/no)\n"))
 	if err != nil {
-		fmt.Printf("Error reading input: %s\n", err)
-		return // Handle the error as appropriate for your application
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	if strings.ToLower(saveOutput) == "yes" {
@@ -216,18 +219,42 @@ func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileT
 func repairJSONData(jsonFilePath string) (string, error) {
 	oldJSONBytes, err := os.ReadFile(jsonFilePath)
 	if err != nil {
-		return "", fmt.Errorf("reading the JSON file: %w", err)
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	newJSONBytes, err := repairdata.RepairSessionData(oldJSONBytes)
 	if err != nil {
-		return "", fmt.Errorf("repairing the JSON data: %w", err)
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	newFilePath := strings.TrimSuffix(jsonFilePath, ".json") + "_repaired.json"
 	err = os.WriteFile(newFilePath, newJSONBytes, 0644)
 	if err != nil {
-		return "", fmt.Errorf("writing the new JSON data to file: %w", err)
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	return newFilePath, nil
@@ -242,8 +269,15 @@ func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.R
 	if formatOption != 3 {
 		csvFileName, err = promptForInput(ctx, reader, "Enter the name of the CSV file to save: ")
 		if err != nil {
-			fmt.Printf("Error reading input: %s\n", err)
-			return // Handle the error as appropriate for your application
+			if err == context.Canceled || err == io.EOF {
+				// If the error is context.Canceled or io.EOF, exit gracefully.
+				fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+				os.Exit(0)
+			} else {
+				// For other types of errors, print the error message and exit with status code 1.
+				fmt.Printf("\nError reading input: %s\n", err)
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -262,20 +296,41 @@ func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.R
 func createSeparateCSVFiles(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	sessionsFileName, err := promptForInput(ctx, reader, "Enter the name of the sessions CSV file to save: ")
 	if err != nil {
-		fmt.Printf("Failed to get sessions file name: %s\n", err)
-		return // Handle the error as appropriate for your application
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	messagesFileName, err := promptForInput(ctx, reader, "Enter the name of the messages CSV file to save: ")
 	if err != nil {
-		fmt.Printf("Failed to get messages file name: %s\n", err)
-		return // Handle the error as appropriate for your application
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	err = exporter.CreateSeparateCSVFiles(sessions, sessionsFileName, messagesFileName)
 	if err != nil {
-		fmt.Printf("Failed to create separate CSV files: %s\n", err)
-		return // Handle the error as appropriate for your application
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	fmt.Printf("Sessions data saved to %s\n", sessionsFileName)
@@ -302,8 +357,15 @@ func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, format
 func writeContentToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
 	fileName, err := promptForInput(ctx, reader, fmt.Sprintf("Enter the name of the %s file to save: ", fileType))
 	if err != nil {
-		fmt.Printf("Error reading input: %s\n", err)
-		return // Handle the error as appropriate for your application
+		if err == context.Canceled || err == io.EOF {
+			// If the error is context.Canceled or io.EOF, exit gracefully.
+			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			os.Exit(0)
+		} else {
+			// For other types of errors, print the error message and exit with status code 1.
+			fmt.Printf("\nError reading input: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	if fileType == "dataset" {
