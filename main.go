@@ -34,10 +34,19 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	// Collect the JSON file path from the user.
-	jsonFilePath := promptForInput(ctx, reader, "Enter the path to the JSON file: ")
+	jsonFilePath, err := promptForInput(ctx, reader, "Enter the path to the JSON file: ")
+	if err != nil {
+		handleInputError(err)
+		return
+	}
 
 	// Offer the user an option to repair the data before processing.
-	repairData := promptForInput(ctx, reader, "Do you want to repair data? (yes/no): ")
+	repairData, err := promptForInput(ctx, reader, "Do you want to repair data? (yes/no): ")
+	if err != nil {
+		handleInputError(err)
+		return
+	}
+
 	if strings.ToLower(repairData) == "yes" {
 		// Attempt to repair the provided JSON data.
 		newFilePath, err := repairJSONData(jsonFilePath)
@@ -57,8 +66,29 @@ func main() {
 	}
 
 	// Query the user for the preferred output format and process accordingly.
-	outputOption := promptForInput(ctx, reader, "Select the output format:\n1) CSV\n2) Hugging Face Dataset\n")
+	outputOption, err := promptForInput(ctx, reader, "Select the output format:\n1) CSV\n2) Hugging Face Dataset\n")
+	if err != nil {
+		handleInputError(err)
+		return
+	}
 	processOutputOption(ctx, reader, outputOption, store.ChatNextWebStore.Sessions)
+}
+
+// handleInputError checks the type of error and handles it accordingly.
+func handleInputError(err error) {
+	if err == io.EOF {
+		// Handle EOF based on your application's needs.
+		fmt.Println("No more input available. Exiting program.")
+		os.Exit(0) // Exit the program on EOF
+	} else if err == context.Canceled {
+		// Handle a context cancellation, if applicable
+		fmt.Println("Operation canceled. Exiting program.")
+		os.Exit(1)
+	} else {
+		// Handle other types of errors
+		fmt.Printf("Error reading input: %s\n", err)
+		os.Exit(1) // Exit the program on other errors
+	}
 }
 
 // setupSignalHandling configures the application to respond to interrupt signals for
@@ -81,21 +111,29 @@ func setupSignalHandling(cancel context.CancelFunc) {
 }
 
 // promptForInput displays a prompt to the user and returns the trimmed input response.
-// It now supports context cancellation, which can interrupt the processing flow if needed.
-func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) string {
+// It supports context cancellation, which can interrupt the blocking read operation.
+func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) (string, error) {
 	fmt.Print(prompt)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		if err == io.EOF {
-			// Handle EOF based on your application's needs.
-			fmt.Println("No more input available. Exiting program.")
-			os.Exit(0) // Exit the program on EOF
+	inputChan := make(chan string)
+	errorChan := make(chan error)
+
+	go func() {
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			errorChan <- err
 		} else {
-			fmt.Printf("Error reading input: %s\n", err)
-			os.Exit(1) // Exit the program on other errors
+			inputChan <- input
 		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case err := <-errorChan:
+		return "", err
+	case input := <-inputChan:
+		return strings.TrimSpace(input), nil
 	}
-	return strings.TrimSpace(input)
 }
 
 // processOutputOption directs the processing flow based on the user's choice of output format.
@@ -118,7 +156,12 @@ func processOutputOption(ctx context.Context, reader *bufio.Reader, outputOption
 // It prints the output file names or error messages accordingly.
 func processCSVOption(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	// Prompt the user for the CSV format option
-	formatOptionStr := promptForInput(ctx, reader, "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n")
+	formatOptionStr, err := promptForInput(ctx, reader, "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n")
+	if err != nil {
+		fmt.Printf("Error reading input: %s\n", err)
+		return // Handle the error as appropriate for your application
+	}
+
 	formatOption, err := strconv.Atoi(formatOptionStr)
 	if err != nil {
 		fmt.Println("Invalid format option.")
@@ -143,8 +186,13 @@ func processDatasetOption(ctx context.Context, reader *bufio.Reader, sessions []
 // saveToFile prompts the user to save the provided content to a file of the specified type.
 // This function now also accepts a context, allowing file operations to be cancelable.
 func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
-	saveOutput := promptForInput(ctx, reader, fmt.Sprintf("Do you want to save the output to a file? (yes/no)\n"))
-	if saveOutput == "yes" {
+	saveOutput, err := promptForInput(ctx, reader, fmt.Sprintf("Do you want to save the output to a file? (yes/no)\n"))
+	if err != nil {
+		fmt.Printf("Error reading input: %s\n", err)
+		return // Handle the error as appropriate for your application
+	}
+
+	if strings.ToLower(saveOutput) == "yes" {
 		// Collect the file name from the user and write the content to the file.
 		writeContentToFile(ctx, reader, content, fileType)
 	}
@@ -175,9 +223,15 @@ func repairJSONData(jsonFilePath string) (string, error) {
 // executeCSVConversion handles the CSV conversion process based on the user-selected format option.
 // It is now context-aware, allowing for cancellation during the CSV conversion process.
 func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.Reader, sessions []exporter.Session) {
-	csvFileName := ""
+	var csvFileName string
+	var err error
+
 	if formatOption != 3 {
-		csvFileName = promptForInput(ctx, reader, "Enter the name of the CSV file to save: ")
+		csvFileName, err = promptForInput(ctx, reader, "Enter the name of the CSV file to save: ")
+		if err != nil {
+			fmt.Printf("Error reading input: %s\n", err)
+			return // Handle the error as appropriate for your application
+		}
 	}
 
 	switch formatOption {
@@ -191,15 +245,24 @@ func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.R
 }
 
 // createSeparateCSVFiles prompts the user for file names and creates separate CSV files for sessions and messages.
-// This function is context-aware, respecting any cancellation requests during file operations.
+// This function is context-aware and supports cancellation during the prompt for input.
 func createSeparateCSVFiles(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
-	sessionsFileName := promptForInput(ctx, reader, "Enter the name of the sessions CSV file to save: ")
-	messagesFileName := promptForInput(ctx, reader, "Enter the name of the messages CSV file to save: ")
+	sessionsFileName, err := promptForInput(ctx, reader, "Enter the name of the sessions CSV file to save: ")
+	if err != nil {
+		fmt.Printf("Failed to get sessions file name: %s\n", err)
+		return // Handle the error as appropriate for your application
+	}
 
-	err := exporter.CreateSeparateCSVFiles(sessions, sessionsFileName, messagesFileName)
+	messagesFileName, err := promptForInput(ctx, reader, "Enter the name of the messages CSV file to save: ")
+	if err != nil {
+		fmt.Printf("Failed to get messages file name: %s\n", err)
+		return // Handle the error as appropriate for your application
+	}
+
+	err = exporter.CreateSeparateCSVFiles(sessions, sessionsFileName, messagesFileName)
 	if err != nil {
 		fmt.Printf("Failed to create separate CSV files: %s\n", err)
-		return
+		return // Handle the error as appropriate for your application
 	}
 
 	fmt.Printf("Sessions data saved to %s\n", sessionsFileName)
@@ -216,7 +279,7 @@ func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, format
 		} else {
 			fmt.Printf("Failed to convert sessions to CSV: %s\n", err)
 		}
-		return
+		return // Handle the error as appropriate for your application
 	}
 	fmt.Printf("CSV output saved to %s\n", csvFileName)
 }
@@ -224,10 +287,16 @@ func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, format
 // writeContentToFile collects a file name from the user and writes the provided content to the specified file.
 // It now includes context support to handle potential cancellation during file writing.
 func writeContentToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
-	fileName := promptForInput(ctx, reader, fmt.Sprintf("Enter the name of the %s file to save: ", fileType))
+	fileName, err := promptForInput(ctx, reader, fmt.Sprintf("Enter the name of the %s file to save: ", fileType))
+	if err != nil {
+		fmt.Printf("Error reading input: %s\n", err)
+		return // Handle the error as appropriate for your application
+	}
+
 	if fileType == "dataset" {
 		fileName += ".json"
 	}
+
 	file, err := os.Create(fileName)
 	if err != nil {
 		fmt.Printf("Failed to create the %s file: %s\n", fileType, err)
@@ -240,5 +309,6 @@ func writeContentToFile(ctx context.Context, reader *bufio.Reader, content strin
 		fmt.Printf("Failed to write to the %s file: %s\n", fileType, err)
 		return
 	}
+
 	fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
 }
