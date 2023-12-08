@@ -120,7 +120,20 @@ func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) (s
 	go func() {
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			errorChan <- err
+			// Check for an interrupt signal error and handle it.
+			if err == io.EOF {
+				select {
+				case <-ctx.Done():
+					// If the context is canceled, assume it's due to an interrupt signal.
+					fmt.Println("\n[GopherHelper] Exiting gracefully...")
+					errorChan <- ctx.Err()
+				default:
+					// Otherwise, it's a legitimate EOF.
+					errorChan <- io.EOF
+				}
+			} else {
+				errorChan <- err
+			}
 		} else {
 			inputChan <- input
 		}
