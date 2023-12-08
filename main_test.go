@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -46,34 +47,31 @@ func TestProcessCSVOption(t *testing.T) {
 	input := "4\noutput.csv\n"
 	reader := bufio.NewReader(strings.NewReader(input))
 
-	// Create a pipe to capture the standard output
-	r, w, _ := os.Pipe()
-	stdout := os.Stdout
-	os.Stdout = w
-	defer func() {
-		os.Stdout = stdout // Restore original Stdout
-	}()
-
 	// Create a context that can be canceled
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	outputBuffer := bytes.Buffer{}
+	// Capture the original stdout
+	oldStdout := os.Stdout
+	defer func() { os.Stdout = oldStdout }()
+
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
 	// Call the function being tested
-	go func() {
-		defer w.Close()
-		processCSVOption(ctx, reader, store.ChatNextWebStore.Sessions)
-	}()
+	processCSVOption(ctx, reader, store.ChatNextWebStore.Sessions)
 
-	// Read from the pipe into the buffer
-	_, err = outputBuffer.ReadFrom(r)
-	if err != nil {
-		t.Fatalf("Failed to read from pipe: %v", err)
-	}
+	// Close the write-end of the pipe so we can read from it
+	w.Close()
 
-	// Get the output from the buffer
-	outputStr := outputBuffer.String()
+	// Read the captured output
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	// Restore os.Stdout
+	os.Stdout = oldStdout
+
+	outputStr := buf.String()
 
 	// Check if the file was created
 	_, err = os.Stat("output.csv")
@@ -82,23 +80,28 @@ func TestProcessCSVOption(t *testing.T) {
 	}
 
 	// Clean up test file
-	os.Remove("output.csv")
+	defer os.Remove("output.csv")
 
 	// Assert the expected output
 	expectedOutput := "CSV output saved to output.csv\n"
 	if !strings.Contains(outputStr, expectedOutput) {
-		t.Errorf("Expected output to contain: %s, but got: %s", expectedOutput, outputStr)
+		t.Errorf("Expected output to contain: %s, got: %s", expectedOutput, outputStr)
 	}
 }
 
 // TestPromptForInput tests the promptForInput function.
-// It mocks user input, calls the function being tested, and asserts the expected result.
 func TestPromptForInput(t *testing.T) {
 	input := "test input\n"
 	reader := bufio.NewReader(strings.NewReader(input))
 
-	result := promptForInput(reader, "Enter input: ")
+	// Create a context that can be canceled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	// Call promptForInput and capture the result
+	result := promptForInput(ctx, reader, "Enter input: ")
+
+	// Assert the expected result
 	if result != "test input" {
 		t.Errorf("promptForInput() = %q, want %q", result, "test input")
 	}
