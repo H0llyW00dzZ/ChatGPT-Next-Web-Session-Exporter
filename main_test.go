@@ -100,7 +100,10 @@ func TestPromptForInput(t *testing.T) {
 	defer cancel()
 
 	// Call promptForInput and capture the result
-	result := promptForInput(ctx, reader, "Enter input: ")
+	result, err := promptForInput(ctx, reader, "Enter input: ")
+	if err != nil {
+		t.Fatalf("promptForInput() returned an error: %v", err)
+	}
 
 	// Assert the expected result
 	if result != "test input" {
