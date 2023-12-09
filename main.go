@@ -73,7 +73,11 @@ func main() {
 		handleInputError(err)
 		return
 	}
-	processOutputOption(ctx, reader, outputOption, store.ChatNextWebStore.Sessions)
+	// Create an instance of your real file system implementation.
+	realFS := &filesystem.RealFileSystem{}
+	// Pass the real file system instance when calling processOutputOption.
+	processOutputOption(realFS, ctx, reader, outputOption, store.ChatNextWebStore.Sessions)
+
 }
 
 // handleInputError checks the type of error and handles it accordingly.
@@ -134,12 +138,12 @@ func promptForInput(ctx context.Context, reader *bufio.Reader, prompt string) (s
 
 // processOutputOption directs the processing flow based on the user's choice of output format.
 // It now respects the context for cancellation, ensuring long-running operations can be interrupted.
-func processOutputOption(ctx context.Context, reader *bufio.Reader, outputOption string, sessions []exporter.Session) {
+func processOutputOption(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, outputOption string, sessions []exporter.Session) {
 	switch outputOption {
 	case "1":
-		processCSVOption(ctx, reader, sessions)
+		processCSVOption(fs, ctx, reader, sessions)
 	case "2":
-		processDatasetOption(ctx, reader, sessions)
+		processDatasetOption(fs, ctx, reader, sessions)
 	default:
 		fmt.Println("Invalid output option.")
 	}
@@ -150,7 +154,7 @@ func processOutputOption(ctx context.Context, reader *bufio.Reader, outputOption
 // If the format option is 3, it prompts the user for the names of the sessions and messages CSV files to save, and calls exporter.CreateSeparateCSVFiles to create separate CSV files for sessions and messages.
 // If the format option is not 3, it prompts the user for the name of the CSV file to save, and calls exporter.ConvertSessionsToCSV to convert sessions to CSV based on the selected format option.
 // It prints the output file names or error messages accordingly.
-func processCSVOption(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
+func processCSVOption(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	// Prompt the user for the CSV format option
 	formatOptionStr, err := promptForInput(ctx, reader, "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n")
 	if err != nil {
@@ -173,12 +177,12 @@ func processCSVOption(ctx context.Context, reader *bufio.Reader, sessions []expo
 	}
 
 	// Execute the CSV conversion based on the selected format option.
-	executeCSVConversion(ctx, formatOption, reader, sessions)
+	executeCSVConversion(fs, ctx, formatOption, reader, sessions)
 }
 
 // processDatasetOption handles the conversion of session data to a Hugging Face Dataset format.
 // It is now context-aware and will respect cancellation requests.
-func processDatasetOption(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
+func processDatasetOption(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	datasetOutput, err := exporter.ExtractToDataset(sessions)
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
@@ -256,7 +260,7 @@ func repairJSONData(ctx context.Context, jsonFilePath string) (string, error) {
 
 // executeCSVConversion handles the CSV conversion process based on the user-selected format option.
 // It is now context-aware, allowing for cancellation during the CSV conversion process.
-func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.Reader, sessions []exporter.Session) {
+func executeCSVConversion(fs filesystem.FileSystem, ctx context.Context, formatOption int, reader *bufio.Reader, sessions []exporter.Session) {
 	var csvFileName string
 	var err error
 
@@ -278,16 +282,18 @@ func executeCSVConversion(ctx context.Context, formatOption int, reader *bufio.R
 	switch formatOption {
 	case 3:
 		// If the user chooses to create separate files, prompt for file names and execute accordingly.
-		createSeparateCSVFiles(ctx, reader, sessions)
+		// Pass the FileSystem to createSeparateCSVFiles
+		createSeparateCSVFiles(fs, ctx, reader, sessions)
 	default:
 		// Otherwise, convert the sessions to a single CSV file.
-		convertToSingleCSV(ctx, sessions, formatOption, csvFileName)
+		// Pass the FileSystem to convertToSingleCSV
+		convertToSingleCSV(fs, ctx, sessions, formatOption, csvFileName)
 	}
 }
 
 // createSeparateCSVFiles prompts the user for file names and creates separate CSV files for sessions and messages.
 // This function is context-aware and supports cancellation during the prompt for input.
-func createSeparateCSVFiles(ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
+func createSeparateCSVFiles(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	sessionsFileName, err := promptForInput(ctx, reader, "Enter the name of the sessions CSV file to save: ")
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
@@ -333,7 +339,7 @@ func createSeparateCSVFiles(ctx context.Context, reader *bufio.Reader, sessions 
 
 // convertToSingleCSV converts the session data to a single CSV file using the specified format option.
 // It now checks for context cancellation and halts the operation if a cancellation is requested.
-func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, formatOption int, csvFileName string) {
+func convertToSingleCSV(fs filesystem.FileSystem, ctx context.Context, sessions []exporter.Session, formatOption int, csvFileName string) {
 	err := exporter.ConvertSessionsToCSV(ctx, sessions, formatOption, csvFileName)
 	if err != nil {
 		if err == context.Canceled {
