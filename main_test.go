@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -50,7 +51,8 @@ func TestProcessCSVOption(t *testing.T) {
 	}
 
 	// Simulate user input by creating a reader that will return the input as if typed by a user.
-	input := "4\noutput.csv\n" // User selects option 4 and specifies "output.csv" as the file name.
+	// Assuming that the option for OutputFormatSeparateCSVFiles is 4 as per the constants defined in session.go.
+	input := fmt.Sprintf("%d\noutput_sessions.csv\noutput_messages.csv\n", 3)
 	reader := bufio.NewReader(strings.NewReader(input))
 
 	// Create a cancellable context to allow for timeout or cancellation of the process.
@@ -60,40 +62,37 @@ func TestProcessCSVOption(t *testing.T) {
 	// Create an instance of the mock file system
 	mockFS := filesystem.NewMockFileSystem()
 
-	// Redirect stdout to a pipe where we can capture the output of the function.
-	r, w, _ := os.Pipe()
+	// Capture the output of the function by redirecting stdout.
 	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// Invoke the processCSVOption function, which should process the input and generate a CSV file.
+	// Invoke the processCSVOption function, which should process the input and generate CSV files.
 	processCSVOption(mockFS, ctx, reader, store.ChatNextWebStore.Sessions)
 
 	// Close the write-end of the pipe to finish capturing the output.
 	w.Close()
+	os.Stdout = oldStdout // Restore the original stdout.
 
 	// Read the captured output from the read-end of the pipe into a buffer for assertion.
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 
-	// Restore the original stdout.
-	os.Stdout = oldStdout
-
 	// Convert the captured output into a string for easy comparison.
 	outputStr := buf.String()
 
-	// Assert that the "output.csv" file was created by the function.
-	_, err = os.Stat("output.csv")
-	if os.IsNotExist(err) {
-		t.Errorf("Expected file 'output.csv' was not created")
+	// Check that the captured output contains the expected success messages.
+	expectedOutputSession := "Sessions data saved to output_sessions.csv\n"
+	expectedOutputMessage := "Messages data saved to output_messages.csv\n"
+	if !strings.Contains(outputStr, expectedOutputSession) {
+		t.Errorf("Expected output to contain: %s, got: %s", expectedOutputSession, outputStr)
 	}
+	// Clean up by removing the test output files.
+	defer os.Remove("output_sessions.csv")
+	defer os.Remove("output_messages.csv")
 
-	// Clean up by removing the test output file.
-	defer os.Remove("output.csv")
-
-	// Check that the captured output contains the expected success message.
-	expectedOutput := "CSV output saved to output.csv\n"
-	if !strings.Contains(outputStr, expectedOutput) {
-		t.Errorf("Expected output to contain: %s, got: %s", expectedOutput, outputStr)
+	if !strings.Contains(outputStr, expectedOutputMessage) {
+		t.Errorf("Expected output to contain: %s, got: %s", expectedOutputMessage, outputStr)
 	}
 }
 
