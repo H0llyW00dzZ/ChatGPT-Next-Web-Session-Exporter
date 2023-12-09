@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
 )
 
 // loadTestSessions is a helper function that loads test session data from a JSON file.
@@ -204,7 +205,7 @@ func TestWriteContentToFile(t *testing.T) {
 
 	// Simulate user input for the file name.
 	var userInput bytes.Buffer
-	userInput.Write([]byte("testing\n")) // Simulate user typing "testfile" and pressing Enter.
+	userInput.Write([]byte("testing\n")) // Simulate user typing "testing" and pressing Enter.
 
 	// Use the buffer as the reader for input.
 	reader := bufio.NewReader(&userInput)
@@ -212,34 +213,20 @@ func TestWriteContentToFile(t *testing.T) {
 	// Define the content to be written to the file.
 	content := "Test content"
 
-	// Create a temporary directory to avoid cluttering the filesystem with test files.
-	tempDir, err := os.MkdirTemp("", "testfiles")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempDir) // Ensure the directory is removed after the test.
-
-	// Change the working directory to the temporary directory before creating the file.
-	os.Chdir(tempDir)
+	// Create a mock file system.
+	mockFS := &filesystem.MockFileSystem{}
 
 	// Invoke the function to write content to a file with "dataset" as the file type.
-	writeContentToFile(ctx, reader, content, "dataset")
+	writeContentToFile(mockFS, ctx, reader, content, "dataset")
 
-	// Verify that the file with the expected name was created.
+	// Verify that the file with the expected name was created in the mock file system.
 	expectedFileName := "testing.json"
-	if _, err := os.Stat(expectedFileName); os.IsNotExist(err) {
+	if _, ok := mockFS.FilesCreated[expectedFileName]; !ok {
 		t.Errorf("Expected file %s to be created, but it does not exist", expectedFileName)
 	}
 
-	// Read the file and check if the content matches what was intended to be written.
-	fileContent, err := os.ReadFile(expectedFileName)
-	if err != nil {
-		t.Fatal("Failed to read the file created by writeContentToFile")
+	// Check the content written to the mock file system.
+	if string(mockFS.FilesCreated[expectedFileName].Bytes()) != content {
+		t.Errorf("Expected file content %q, got %q", content, string(mockFS.FilesCreated[expectedFileName].Bytes()))
 	}
-	if string(fileContent) != content {
-		t.Errorf("Expected file content %q, got %q", content, string(fileContent))
-	}
-
-	// Return to the original directory after the test to avoid affecting other tests or operations.
-	os.Chdir("..")
 }
