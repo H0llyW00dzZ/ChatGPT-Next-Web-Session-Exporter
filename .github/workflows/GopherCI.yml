@@ -1,6 +1,8 @@
-############################
-# Author : H0llyW00dzZ     #
-############################
+#######################################################################
+# Author: H0llyW00dzZ                                                 #
+# CI/CD Note: this A better GopherCI, instead of using paid ci.🤣    #
+# Todo: Integrate AI for summarization tasks.                        #
+######################################################################
 name: Gopher Unit Testing
 
 on:
@@ -61,5 +63,5 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Build
+    - name: Test Build
       run: go build -v ./...
