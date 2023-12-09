@@ -10,6 +10,13 @@ on:
     branches: [master]
     types: [opened, reopened, synchronize]
 
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to test'
+        required: true
+        default: 'master'
+
 jobs:
   test:
     name: Run Gopher Unit Testing on ${{ matrix.os }}
