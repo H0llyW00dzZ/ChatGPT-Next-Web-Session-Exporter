@@ -156,6 +156,23 @@ type ChatNextWebStore struct {
 	ChatNextWebStore Store `json:"chat-next-web-store"`
 }
 
+// Define an interface for formatting sessions into CSV.
+type CSVFormatter interface {
+	WriteHeaders(csvWriter *csv.Writer) error
+	WriteSession(csvWriter *csv.Writer, session Session) error
+}
+
+// Implement a CSVFormatter for each format option.
+type InlineFormatter struct{}
+type OneMessagePerLineFormatter struct{}
+type JSONStringInCSVFormatter struct{}
+
+// Implement the WriteHeaders method for InlineFormatter.
+func (f *InlineFormatter) WriteHeaders(csvWriter *csv.Writer) error {
+	headers := []string{"id", "topic", "memoryPrompt", "messages"}
+	return csvWriter.Write(headers)
+}
+
 // ReadJSONFromFile reads a JSON file from the given file path and unmarshals it into a ChatNextWebStore struct.
 //
 // It returns an error if the file cannot be opened, the JSON
