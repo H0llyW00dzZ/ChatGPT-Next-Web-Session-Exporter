@@ -21,7 +21,11 @@ var _ FileSystem = (*MockFileSystem)(nil)
 // It uses a map to store file names and associated data, allowing for the simulation of file creation,
 // reading, and writing without actual file system interaction.
 type MockFileSystem struct {
-	FilesCreated map[string]*bytes.Buffer // FilesCreated maps file names to buffers holding file contents.
+	FilesCreated    map[string]*bytes.Buffer // FilesCreated maps file names to buffers holding file contents.
+	WriteFileCalled bool                     // Add this field to track if WriteFile has been called.
+	WriteFilePath   string                   // Track the path provided to WriteFile.
+	WriteFileData   []byte                   // Optionally track the data provided to WriteFile.
+	WriteFilePerm   fs.FileMode              // Optionally track the file permissions provided to WriteFile.
 }
 
 // MockExporter is a mock implementation of the exporter.Exporter interface for testing purposes.
@@ -77,6 +81,10 @@ func (m *MockFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) e
 		m.FilesCreated = make(map[string]*bytes.Buffer)
 	}
 	m.FilesCreated[name] = bytes.NewBuffer(data)
+	m.WriteFileCalled = true // Set this to true when WriteFile is called.
+	m.WriteFilePath = name   // Record the path.
+	m.WriteFileData = data   // Record the data.
+	m.WriteFilePerm = perm   // Record the permissions.
 	return nil
 }
 
