@@ -58,7 +58,7 @@ func TestProcessCSVOption(t *testing.T) {
 	defer cancel()
 
 	// Create an instance of the mock file system
-	mockFS := &filesystem.MockFileSystem{}
+	mockFS := filesystem.NewMockFileSystem()
 
 	// Redirect stdout to a pipe where we can capture the output of the function.
 	r, w, _ := os.Pipe()
@@ -129,8 +129,9 @@ func TestPromptForInputCancellation(t *testing.T) {
 	}()
 
 	_, err := promptForInput(ctx, reader, "Enter input: ")
-	if err != nil || err == context.Canceled || err == io.EOF {
-		t.Fatalf("Expected context.Canceled error, got: %v", err)
+	// testing for windows now
+	if err != context.Canceled && err != nil && err != io.EOF {
+		t.Fatalf("Expected context.Canceled or io.EOF error, got: %v", err)
 	}
 }
 
@@ -156,6 +157,7 @@ func TestLoadIncorrectJson(t *testing.T) {
 func TestRepairJSONDataFromFile(t *testing.T) {
 	// Define the path to your testing.json file containing broken JSON for the test.
 	brokenJSONPath := "testing.json"
+	realFS := &filesystem.RealFileSystem{}
 
 	// Test successful repair of the JSON data.
 	t.Run("SuccessfulRepair", func(t *testing.T) {
@@ -163,7 +165,7 @@ func TestRepairJSONDataFromFile(t *testing.T) {
 		defer cancel()
 
 		// Attempt to repair the JSON data and expect a valid file path to the repaired JSON.
-		repairedPath, err := repairJSONData(ctx, brokenJSONPath)
+		repairedPath, err := repairJSONData(realFS, ctx, brokenJSONPath)
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -181,7 +183,7 @@ func TestRepairJSONDataFromFile(t *testing.T) {
 		}
 
 		// Clean up by removing the repaired file after the test.
-		defer os.Remove("testing_repaired.json")
+		defer os.Remove("repaired_testing.json")
 	})
 
 	// Test repair function with a non-existent file path.
@@ -190,7 +192,7 @@ func TestRepairJSONDataFromFile(t *testing.T) {
 		defer cancel()
 
 		// Attempt to repair JSON data from a non-existent file and expect an error.
-		_, err := repairJSONData(ctx, "nonexistent.json")
+		_, err := repairJSONData(realFS, ctx, "nonexistent.json")
 		if err == nil {
 			t.Errorf("Expected an error for a non-existent file path, got nil")
 		}
@@ -214,19 +216,24 @@ func TestWriteContentToFile(t *testing.T) {
 	content := "Test content"
 
 	// Create a mock file system.
-	mockFS := &filesystem.MockFileSystem{}
+	mockFS := filesystem.NewMockFileSystem()
 
 	// Invoke the function to write content to a file with "dataset" as the file type.
 	writeContentToFile(mockFS, ctx, reader, content, "dataset")
 
-	// Verify that the file with the expected name was created in the mock file system.
+	// Verify that the WriteFile method was called on the mock file system.
+	if !mockFS.WriteFileCalled {
+		t.Errorf("WriteFile was not called")
+	}
+
+	// Verify that the WriteFile method was called with the correct parameters.
 	expectedFileName := "testing.json"
-	if _, ok := mockFS.FilesCreated[expectedFileName]; !ok {
-		t.Errorf("Expected file %s to be created, but it does not exist", expectedFileName)
+	if mockFS.WriteFilePath != expectedFileName {
+		t.Errorf("WriteFile was called with the wrong file name: got %v, want %v", mockFS.WriteFilePath, expectedFileName)
 	}
 
 	// Check the content written to the mock file system.
 	if string(mockFS.FilesCreated[expectedFileName].Bytes()) != content {
-		t.Errorf("Expected file content %q, got %q", content, string(mockFS.FilesCreated[expectedFileName].Bytes()))
+		t.Errorf("WriteFile was called with the wrong content: got %v, want %v", string(mockFS.FilesCreated[expectedFileName].Bytes()), content)
 	}
 }

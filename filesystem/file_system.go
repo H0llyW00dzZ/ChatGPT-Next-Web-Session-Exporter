@@ -11,9 +11,11 @@ import (
 // FileSystem is an interface that abstracts file system operations such as creating
 // files, writing to files, and retrieving file information. This allows for implementations
 // that can interact with the file system or provide mock functionality for testing purposes.
+// FileSystem interface now includes ReadFile method.
 type FileSystem interface {
 	Create(name string) (*os.File, error)
 	WriteFile(name string, data []byte, perm fs.FileMode) error
+	ReadFile(name string) ([]byte, error) // Added ReadFile method
 	Stat(name string) (os.FileInfo, error)
 }
 
@@ -23,20 +25,26 @@ type RealFileSystem struct{}
 
 // Create creates a new file with the given name.
 // It wraps the os.Create function and returns a pointer to the created file along with any error encountered.
-func (fs RealFileSystem) Create(name string) (*os.File, error) {
+func (rfs RealFileSystem) Create(name string) (*os.File, error) {
 	return os.Create(name)
 }
 
 // WriteFile writes data to a file named by filename.
 // If the file does not exist, WriteFile creates it with permissions perm;
 // otherwise WriteFile truncates it before writing.
-func (fs RealFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
+func (rfs RealFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	return os.WriteFile(name, data, perm)
+}
+
+// ReadFile reads the named file and returns the contents.
+// It wraps the os.ReadFile function.
+func (rfs RealFileSystem) ReadFile(name string) ([]byte, error) {
+	return os.ReadFile(name)
 }
 
 // Stat returns the FileInfo structure describing the file named by the given name.
 // It wraps the os.Stat function and returns the FileInfo and any error encountered, for instance,
 // if the file does not exist.
-func (fs RealFileSystem) Stat(name string) (os.FileInfo, error) {
+func (rfs RealFileSystem) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(name)
 }

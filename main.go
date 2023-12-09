@@ -49,9 +49,10 @@ func main() {
 	}
 
 	if strings.ToLower(repairData) == "yes" {
-		// Attempt to repair the provided JSON data.
-		// Pass the context to the repairJSONData function.
-		newFilePath, err := repairJSONData(ctx, jsonFilePath)
+		// Create an instance of your real file system implementation.
+		realFS := &filesystem.RealFileSystem{}
+		// Pass the real file system instance when calling repairJSONData.
+		newFilePath, err := repairJSONData(realFS, ctx, jsonFilePath)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
 			os.Exit(1)
@@ -195,12 +196,12 @@ func processDatasetOption(fs filesystem.FileSystem, ctx context.Context, reader 
 			os.Exit(1)
 		}
 	}
-	saveToFile(ctx, reader, datasetOutput, "dataset")
+	saveToFile(fs, ctx, reader, datasetOutput, "dataset")
 }
 
 // saveToFile prompts the user to save the provided content to a file of the specified type.
 // This function now also accepts a context, allowing file operations to be cancelable.
-func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
+func saveToFile(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) {
 	saveOutput, err := promptForInput(ctx, reader, fmt.Sprintf("Do you want to save the output to a file? (yes/no)\n"))
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
@@ -215,10 +216,8 @@ func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileT
 	}
 
 	if strings.ToLower(saveOutput) == "yes" {
-		// Create an instance of RealFileSystem to pass to writeContentToFile
-		realFS := filesystem.RealFileSystem{}
-		// Now pass this instance as the first argument to writeContentToFile
-		err = writeContentToFile(realFS, ctx, reader, content, fileType)
+		// Now pass the provided file system interface instance to writeContentToFile
+		err = writeContentToFile(fs, ctx, reader, content, fileType)
 		if err != nil {
 			// Handle the error
 			fmt.Printf("Error writing file: %s\n", err)
@@ -229,33 +228,30 @@ func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileT
 
 // repairJSONData attempts to repair the JSON data at the provided file path and returns the path to the repaired file.
 // This function is not context-aware as it performs a single, typically quick operation.
-func repairJSONData(ctx context.Context, jsonFilePath string) (string, error) {
-	// Check if the context is already done before starting the operation.
-	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
-	default:
-		// Continue if the context is not cancelled.
-	}
-
-	oldJSONBytes, err := os.ReadFile(jsonFilePath)
+func repairJSONData(fs filesystem.FileSystem, ctx context.Context, jsonFilePath string) (string, error) {
+	// Read the broken JSON data using the file system interface
+	data, err := fs.ReadFile(jsonFilePath)
 	if err != nil {
-		return "", err
+		return "", err // Handle the error properly
 	}
 
-	// Simulate a context-aware operation (since os.ReadFile is not context-aware).
-	newJSONBytes, err := repairdata.RepairSessionData(oldJSONBytes)
+	// Repair the JSON data (this is where you fix the JSON string)
+	repairedData, repairErr := repairdata.RepairSessionData(data)
+	if repairErr != nil {
+		return "", repairErr // Handle the error properly
+	}
+
+	// Define the path for the repaired file
+	repairedPath := "repaired_" + jsonFilePath
+
+	// Write the repaired JSON data using the file system interface
+	err = fs.WriteFile(repairedPath, repairedData, 0644)
 	if err != nil {
-		return "", err
+		return "", err // Handle the error properly
 	}
 
-	newFilePath := strings.TrimSuffix(jsonFilePath, ".json") + "_repaired.json"
-	err = os.WriteFile(newFilePath, newJSONBytes, 0644)
-	if err != nil {
-		return "", err
-	}
-
-	return newFilePath, nil
+	// Return the path to the repaired file
+	return repairedPath, nil
 }
 
 // executeCSVConversion handles the CSV conversion process based on the user-selected format option.
