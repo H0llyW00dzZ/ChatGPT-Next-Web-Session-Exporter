@@ -26,6 +26,10 @@ type MockFileSystem struct {
 	WriteFilePath   string                   // Track the path provided to WriteFile.
 	WriteFileData   []byte                   // Optionally track the data provided to WriteFile.
 	WriteFilePerm   fs.FileMode              // Optionally track the file permissions provided to WriteFile.
+	Files           map[string][]byte        // Files maps file names to file contents.
+	ReadFileCalled  bool                     // this field to track if ReadFile has been caled.
+	ReadFileData    []byte                   // Optionally track the data provided to ReadFile.
+	ReadFileErr     error                    // Optionally track the error provider to ReadFile.
 }
 
 // MockExporter is a mock implementation of the exporter.Exporter interface for testing purposes.
@@ -44,6 +48,13 @@ func (m *MockExporter) ConvertSessionsToCSV(ctx context.Context, sessions []expo
 	return m.ErrToReturn
 }
 
+// NewMockFileSystem creates a new instance of MockFileSystem with initialized internal structures.
+func NewMockFileSystem() *MockFileSystem {
+	return &MockFileSystem{
+		FilesCreated: make(map[string]*bytes.Buffer),
+	}
+}
+
 // Stat returns the FileInfo for the given file name if it exists in the mock file system.
 // If the file does not exist, it returns an error to simulate the os.Stat behavior.
 func (m *MockFileSystem) Stat(name string) (fs.FileInfo, error) {
@@ -55,21 +66,19 @@ func (m *MockFileSystem) Stat(name string) (fs.FileInfo, error) {
 }
 
 // Create simulates the creation of a file by creating a new buffer in the FilesCreated map.
-// It returns a dummy *os.File object and nil error to mimic the os.Create function's behavior in tests.
+// It returns nil to signify that the file is not meant for actual I/O operations.
 func (m *MockFileSystem) Create(name string) (*os.File, error) {
-	if m.FilesCreated == nil {
-		m.FilesCreated = make(map[string]*bytes.Buffer)
-	}
+	// Now Safe to create a new buffer for the file.
 	m.FilesCreated[name] = new(bytes.Buffer)
-	// Return a dummy file object with a fake file descriptor.
-	return os.NewFile(0, name), nil
+	// Return nil to indicate that the file is not meant for I/O operations.
+	return nil, nil
 }
 
-// ReadFile simulates reading the content of a file from the FilesCreated map.
+// ReadFile simulates reading the content of a file from the Files map.
 // If the file exists, it returns the content as a byte slice; otherwise, it returns an error.
 func (m *MockFileSystem) ReadFile(name string) ([]byte, error) {
-	if content, ok := m.FilesCreated[name]; ok {
-		return content.Bytes(), nil
+	if content, ok := m.Files[name]; ok {
+		return content, nil
 	}
 	return nil, fs.ErrNotExist
 }
@@ -78,7 +87,7 @@ func (m *MockFileSystem) ReadFile(name string) ([]byte, error) {
 // It creates a new buffer with the provided data, simulating a successful write operation.
 func (m *MockFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	if m.FilesCreated == nil {
-		m.FilesCreated = make(map[string]*bytes.Buffer)
+		m.Files = make(map[string][]byte)
 	}
 	m.FilesCreated[name] = bytes.NewBuffer(data)
 	m.WriteFileCalled = true // Set this to true when WriteFile is called.
