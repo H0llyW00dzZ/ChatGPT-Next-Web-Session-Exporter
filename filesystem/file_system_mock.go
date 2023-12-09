@@ -21,15 +21,17 @@ var _ FileSystem = (*MockFileSystem)(nil)
 // It uses a map to store file names and associated data, allowing for the simulation of file creation,
 // reading, and writing without actual file system interaction.
 type MockFileSystem struct {
-	FilesCreated    map[string]*bytes.Buffer // FilesCreated maps file names to buffers holding file contents.
-	WriteFileCalled bool                     // Add this field to track if WriteFile has been called.
-	WriteFilePath   string                   // Track the path provided to WriteFile.
-	WriteFileData   []byte                   // Optionally track the data provided to WriteFile.
-	WriteFilePerm   fs.FileMode              // Optionally track the file permissions provided to WriteFile.
-	Files           map[string][]byte        // Files maps file names to file contents.
-	ReadFileCalled  bool                     // this field to track if ReadFile has been caled.
-	ReadFileData    []byte                   // Optionally track the data provided to ReadFile.
-	ReadFileErr     error                    // Optionally track the error provider to ReadFile.
+	FilesCreated     map[string]*bytes.Buffer // FilesCreated maps file names to buffers holding file contents.
+	WriteFileCalled  bool                     // Add this field to track if WriteFile has been called.
+	WriteFilePath    string                   // Track the path provided to WriteFile.
+	WriteFileData    []byte                   // Optionally track the data provided to WriteFile.
+	WriteFilePerm    fs.FileMode              // Optionally track the file permissions provided to WriteFile.
+	Files            map[string][]byte        // Files maps file names to file contents.
+	ReadFileCalled   bool                     // this field to track if ReadFile has been caled.
+	ReadFileData     []byte                   // Optionally track the data provided to ReadFile.
+	ReadFileErr      error                    // Optionally track the error provider to ReadFile.
+	FileExistsCalled bool                     // Optionally track the result of FileExists.
+	FileExistsErr    error                    // Optionally track the error provider to FileExists.
 }
 
 // MockExporter is a mock implementation of the exporter.Exporter interface for testing purposes.
@@ -109,3 +111,9 @@ func (m mockFileInfo) Mode() fs.FileMode  { return 0 }           // Dummy value 
 func (m mockFileInfo) ModTime() time.Time { return time.Time{} } // Dummy value for modification time.
 func (m mockFileInfo) IsDir() bool        { return false }       // Dummy value, always false.
 func (m mockFileInfo) Sys() interface{}   { return nil }         // No system-specific information.
+
+// FileExists checks if the given file name exists in the mock file system.
+func (m *MockFileSystem) FileExists(name string) bool {
+	_, exists := m.FilesCreated[name]
+	return exists
+}
