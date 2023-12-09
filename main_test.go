@@ -57,16 +57,16 @@ func TestProcessCSVOption(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Save the current stdout (usually the terminal) so it can be restored after the test.
-	oldStdout := os.Stdout
-	defer func() { os.Stdout = oldStdout }()
+	// Create an instance of the mock file system
+	mockFS := &filesystem.MockFileSystem{}
 
 	// Redirect stdout to a pipe where we can capture the output of the function.
 	r, w, _ := os.Pipe()
+	oldStdout := os.Stdout
 	os.Stdout = w
 
 	// Invoke the processCSVOption function, which should process the input and generate a CSV file.
-	processCSVOption(ctx, reader, store.ChatNextWebStore.Sessions)
+	processCSVOption(mockFS, ctx, reader, store.ChatNextWebStore.Sessions)
 
 	// Close the write-end of the pipe to finish capturing the output.
 	w.Close()
