@@ -26,12 +26,16 @@ type MockFileSystem struct {
 
 // MockExporter is a mock implementation of the exporter.Exporter interface for testing purposes.
 // It allows for the simulation of session conversion to CSV format and can be set to return errors for testing error handling.
+//
+// Note: this types is proof of concept after touring golang.
 type MockExporter struct {
 	ErrToReturn error // ErrToReturn is the error that ConvertSessionsToCSV will return when called.
 }
 
 // ConvertSessionsToCSV simulates the conversion of sessions to CSV format.
 // It returns an error specified by ErrToReturn, allowing for error handling tests.
+//
+// Note: this function is proof of concept after touring golang.
 func (m *MockExporter) ConvertSessionsToCSV(ctx context.Context, sessions []exporter.Session, formatOption int, csvFileName string) error {
 	return m.ErrToReturn
 }
