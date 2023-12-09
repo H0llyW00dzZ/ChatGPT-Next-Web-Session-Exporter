@@ -109,3 +109,9 @@ func (m mockFileInfo) Mode() fs.FileMode  { return 0 }           // Dummy value 
 func (m mockFileInfo) ModTime() time.Time { return time.Time{} } // Dummy value for modification time.
 func (m mockFileInfo) IsDir() bool        { return false }       // Dummy value, always false.
 func (m mockFileInfo) Sys() interface{}   { return nil }         // No system-specific information.
+
+// FileExists checks if the given file name exists in the mock file system.
+func (m *MockFileSystem) FileExists(name string) bool {
+	_, exists := m.FilesCreated[name]
+	return exists
+}

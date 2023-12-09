@@ -80,6 +80,20 @@ import (
 	"strings"
 )
 
+const (
+	// FormatOptionInline specifies the format where messages are displayed inline.
+	FormatOptionInline = iota + 1
+
+	// FormatOptionPerLine specifies the format where each message is on a separate line.
+	FormatOptionPerLine
+
+	// FormatOptionJSON specifies the format where messages are encoded as JSON.
+	FormatOptionJSON
+
+	// OutputFormatSeparateCSVFiles specifies the option to create separate CSV files for sessions and messages.
+	OutputFormatSeparateCSVFiles
+)
+
 // StringOrInt is a custom type to handle JSON values that can be either strings or integers (Magic Golang 🎩 🪄).
 //
 // It implements the Unmarshaler interface to handle this mixed type when unmarshaling JSON data.
@@ -216,11 +230,11 @@ func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption 
 	// Define headers based on the formatOption
 	var headers []string
 	switch formatOption {
-	case 1: // Inline Formatting
+	case FormatOptionInline: // Inline Formatting
 		headers = []string{"id", "topic", "memoryPrompt", "messages"}
-	case 2: // One Message Per Line
+	case FormatOptionPerLine: // One Message Per Line
 		headers = []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}
-	case 4: // JSON String in CSV
+	case FormatOptionJSON: // JSON String in CSV
 		headers = []string{"id", "topic", "memoryPrompt", "messages"}
 	default:
 		return fmt.Errorf("invalid format option")
@@ -244,13 +258,13 @@ func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption 
 
 		var sessionData []string
 		switch formatOption {
-		case 1: // Inline Formatting
+		case FormatOptionInline: // Inline Formatting
 			var messageContents []string
 			for _, message := range session.Messages {
 				messageContents = append(messageContents, fmt.Sprintf("[%s, %s] \"%s\"", message.Role, message.Date, message.Content))
 			}
 			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, strings.Join(messageContents, "; ")}
-		case 2: // One Message Per Line
+		case FormatOptionPerLine: // One Message Per Line
 			for _, message := range session.Messages {
 				sessionData = []string{session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt}
 				if err := csvWriter.Write(sessionData); err != nil {
@@ -258,7 +272,7 @@ func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption 
 				}
 			}
 			continue // Skip the default write for this format option
-		case 4: // JSON String in CSV
+		case FormatOptionJSON: // JSON String in CSV
 			messagesJSON, err := json.Marshal(session.Messages)
 			if err != nil {
 				return fmt.Errorf("failed to marshal messages to JSON: %w", err)
@@ -266,7 +280,7 @@ func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption 
 			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON)}
 		}
 		// Write the session data to the CSV
-		if formatOption != 2 {
+		if formatOption != FormatOptionPerLine {
 			if err := csvWriter.Write(sessionData); err != nil {
 				return fmt.Errorf("failed to write session data to CSV: %w", err)
 			}
