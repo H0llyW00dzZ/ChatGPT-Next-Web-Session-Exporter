@@ -4,14 +4,16 @@
 package filesystem
 
 import (
+	"io/fs"
 	"os"
 )
 
 // FileSystem is an interface that abstracts file system operations such as creating
-// files and retrieving file information. This allows for implementations that can
-// interact with the file system or provide mock functionality for testing purposes.
+// files, writing to files, and retrieving file information. This allows for implementations
+// that can interact with the file system or provide mock functionality for testing purposes.
 type FileSystem interface {
 	Create(name string) (*os.File, error)
+	WriteFile(name string, data []byte, perm fs.FileMode) error
 	Stat(name string) (os.FileInfo, error)
 }
 
@@ -23,6 +25,13 @@ type RealFileSystem struct{}
 // It wraps the os.Create function and returns a pointer to the created file along with any error encountered.
 func (fs RealFileSystem) Create(name string) (*os.File, error) {
 	return os.Create(name)
+}
+
+// WriteFile writes data to a file named by filename.
+// If the file does not exist, WriteFile creates it with permissions perm;
+// otherwise WriteFile truncates it before writing.
+func (fs RealFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	return os.WriteFile(name, data, perm)
 }
 
 // Stat returns the FileInfo structure describing the file named by the given name.
