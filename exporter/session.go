@@ -15,6 +15,9 @@
 // The package also handles fields in the source JSON that may be represented as either
 // strings or integers by using the custom StringOrInt type.
 //
+// Additionally, it now supports context-aware operations, allowing for better control
+// over long-running processes and the ability to cancel them if needed.
+//
 // Code:
 //
 //	func (soi *StringOrInt) UnmarshalJSON(data []byte) error {
@@ -37,13 +40,16 @@
 //
 // Usage examples:
 //
-// To read chat sessions from a JSON file and convert them to a CSV format:
+// To read chat sessions from a JSON file and convert them to a CSV format with context support:
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+//	defer cancel()
 //
 //	store, err := exporter.ReadJSONFromFile("path/to/chat-sessions.json")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	err = exporter.ConvertSessionsToCSV(store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
+//	err = exporter.ConvertSessionsToCSV(ctx, store.ChatNextWebStore.Sessions, exporter.FormatOptionInline, "output.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -65,6 +71,7 @@
 package exporter
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -186,12 +193,17 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 	return store, nil
 }
 
-// ConvertSessionsToCSV writes a slice of Session objects into a CSV file.
+// ConvertSessionsToCSV writes a slice of Session objects into a CSV file with support for context cancellation.
 //
-// It formats the CSV data in different ways based on the formatOption parameter.
+// The function takes a context.Context object as the first parameter to allow for cancellation and timeouts.
 //
-// It returns an error if the format option is invalid or if writing the CSV data fails.
-func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath string) error {
+// The formatOption parameter determines how the CSV data should be formatted.
+//
+// The outputFilePath parameter specifies where to save the CSV file.
+//
+// The function returns an error if the context is cancelled, the format option is invalid,
+// or if writing the CSV data fails.
+func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption int, outputFilePath string) error {
 	outputFile, err := os.Create(outputFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to create output CSV file: %w", err)
@@ -221,6 +233,15 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 
 	// Write each session to the CSV based on the selected format
 	for _, session := range sessions {
+		// Check if the context has been cancelled or a deadline has been exceeded.
+		select {
+		case <-ctx.Done():
+			// If the context is cancelled, return the context's error.
+			return ctx.Err()
+		default:
+			// If the context is not cancelled, proceed with processing.
+		}
+
 		var sessionData []string
 		switch formatOption {
 		case 1: // Inline Formatting
@@ -245,8 +266,10 @@ func ConvertSessionsToCSV(sessions []Session, formatOption int, outputFilePath s
 			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON)}
 		}
 		// Write the session data to the CSV
-		if err := csvWriter.Write(sessionData); err != nil {
-			return fmt.Errorf("failed to write session data to CSV: %w", err)
+		if formatOption != 2 {
+			if err := csvWriter.Write(sessionData); err != nil {
+				return fmt.Errorf("failed to write session data to CSV: %w", err)
+			}
 		}
 	}
 
@@ -328,28 +351,40 @@ func closeCSVWriter(csvWriter *csv.Writer, file *os.File) error {
 // Errors from closing files or flushing data to the CSV writers are captured and will be returned after all operations are attempted.
 //
 // Error messages are logged to the console.
-func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) error {
+func CreateSeparateCSVFiles(sessions []Session, sessionsFileName string, messagesFileName string) (err error) {
 	// Create and initialize the sessions CSV file.
-	sessionsFile, sessionsWriter, err := initializeCSVFile(sessionsFileName, []string{"id", "topic", "memoryPrompt"})
+	var sessionsFile *os.File
+	var sessionsWriter *csv.Writer
+	sessionsFile, sessionsWriter, err = initializeCSVFile(sessionsFileName, []string{"id", "topic", "memoryPrompt"})
 	if err != nil {
 		return err
 	}
-	defer closeCSVWriter(sessionsWriter, sessionsFile) // Simplified error handling
+	defer func() {
+		if cerr := closeCSVWriter(sessionsWriter, sessionsFile); cerr != nil {
+			err = cerr
+		}
+	}()
 
 	// Write session data.
-	if err := WriteSessionData(sessionsWriter, sessions); err != nil {
+	if err = WriteSessionData(sessionsWriter, sessions); err != nil {
 		return err
 	}
 
 	// Create and initialize the messages CSV file.
-	messagesFile, messagesWriter, err := initializeCSVFile(messagesFileName, []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"})
+	var messagesFile *os.File
+	var messagesWriter *csv.Writer
+	messagesFile, messagesWriter, err = initializeCSVFile(messagesFileName, []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"})
 	if err != nil {
 		return err
 	}
-	defer closeCSVWriter(messagesWriter, messagesFile) // Simplified error handling
+	defer func() {
+		if cerr := closeCSVWriter(messagesWriter, messagesFile); cerr != nil {
+			err = cerr
+		}
+	}()
 
 	// Write message data.
-	if err := WriteMessageData(messagesWriter, sessions); err != nil {
+	if err = WriteMessageData(messagesWriter, sessions); err != nil {
 		return err
 	}
 
