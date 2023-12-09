@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/repairdata"
 )
 
@@ -210,8 +211,15 @@ func saveToFile(ctx context.Context, reader *bufio.Reader, content string, fileT
 	}
 
 	if strings.ToLower(saveOutput) == "yes" {
-		// Collect the file name from the user and write the content to the file.
-		writeContentToFile(ctx, reader, content, fileType)
+		// Create an instance of RealFileSystem to pass to writeContentToFile
+		realFS := filesystem.RealFileSystem{}
+		// Now pass this instance as the first argument to writeContentToFile
+		err = writeContentToFile(realFS, ctx, reader, content, fileType)
+		if err != nil {
+			// Handle the error
+			fmt.Printf("Error writing file: %s\n", err)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -340,36 +348,22 @@ func convertToSingleCSV(ctx context.Context, sessions []exporter.Session, format
 
 // writeContentToFile collects a file name from the user and writes the provided content to the specified file.
 // It now includes context support to handle potential cancellation during file writing.
-func writeContentToFile(ctx context.Context, reader *bufio.Reader, content string, fileType string) {
+func writeContentToFile(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) error {
 	fileName, err := promptForInput(ctx, reader, fmt.Sprintf("Enter the name of the %s file to save: ", fileType))
 	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+		return err
 	}
 
 	if fileType == "dataset" {
 		fileName += ".json"
 	}
 
-	file, err := os.Create(fileName)
+	// Use the provided FileSystem interface to write the file content directly
+	err = fs.WriteFile(fileName, []byte(content), 0644)
 	if err != nil {
-		fmt.Printf("Failed to create the %s file: %s\n", fileType, err)
-		return
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(content)
-	if err != nil {
-		fmt.Printf("Failed to write to the %s file: %s\n", fileType, err)
-		return
+		return err
 	}
 
 	fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
+	return nil // Ensure that you return nil if there were no errors
 }
