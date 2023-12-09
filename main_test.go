@@ -183,7 +183,7 @@ func TestRepairJSONDataFromFile(t *testing.T) {
 		}
 
 		// Clean up by removing the repaired file after the test.
-		defer os.Remove("testing.json_repaired")
+		defer os.Remove("repaired_testing.json")
 	})
 
 	// Test repair function with a non-existent file path.

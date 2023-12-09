@@ -242,7 +242,7 @@ func repairJSONData(fs filesystem.FileSystem, ctx context.Context, jsonFilePath 
 	}
 
 	// Define the path for the repaired file
-	repairedPath := jsonFilePath + "_repaired"
+	repairedPath := "repaired_" + jsonFilePath
 
 	// Write the repaired JSON data using the file system interface
 	err = fs.WriteFile(repairedPath, repairedData, 0644)
