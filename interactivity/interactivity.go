@@ -1,9 +1,7 @@
-// Package interactivity provides functions to handle interactive command-line
-// user interfaces. It includes utilities for prompting the user with questions
-// and processing their responses. This package is specifically designed to work
-// with the filesystem provided by the github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem
-// package to confirm potential file overwrites and to collect user input in a
-// context-aware manner, allowing for graceful cancellation of input requests.
+// Package interactivity provides functions to handle interactive command-line interfaces.
+//
+// It includes utilities for prompting users for confirmation and reading their input in a context-aware manner, which allows for graceful
+// cancellation of input requests. The package is designed to integrate with a filesystem interface to check for file existence and handle potential file overwrites.
 package interactivity
 
 import (
