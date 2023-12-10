@@ -55,6 +55,7 @@ func (m *MockExporter) ConvertSessionsToCSV(ctx context.Context, sessions []expo
 func NewMockFileSystem() *MockFileSystem {
 	return &MockFileSystem{
 		FilesCreated: make(map[string]*bytes.Buffer),
+		Files:        make(map[string][]byte),
 	}
 }
 
