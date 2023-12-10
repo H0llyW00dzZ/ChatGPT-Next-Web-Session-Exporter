@@ -52,6 +52,7 @@ func (rfs RealFileSystem) Stat(name string) (os.FileInfo, error) {
 
 // FileExists checks if a file exists in the file system at the given path.
 func (rfs RealFileSystem) FileExists(name string) bool {
-	_, err := os.Stat(name)
-	return !os.IsNotExist(err)
+	_, err := rfs.Stat(name)
+	// Return true only if the error is nil (file exists).
+	return err == nil
 }
