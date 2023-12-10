@@ -70,3 +70,11 @@ func promptForInput(ctx context.Context, reader *bufio.Reader) (string, error) {
 		return strings.TrimSpace(res.input), res.err
 	}
 }
+
+// determineFileName should be a function that determines the file name based on the fileType or other logic.
+// Note: Currently, unimplemented.
+func determineFileName(fileType string) string {
+	// Implement logic to determine the file name
+	// For example, you might prompt the user for a file name or generate it based on the fileType
+	return ""
+}
