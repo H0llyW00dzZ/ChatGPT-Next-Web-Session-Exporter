@@ -239,7 +239,7 @@ func TestWriteContentToFile(t *testing.T) {
 }
 
 // TestConfirmOverwrite tests the ConfirmOverwrite function from the interactivity package.
-// Note: This test is not actually operated on I/O Disk
+// Note: This test does not perform operations on the actual disk I/O.
 func TestConfirmOverwrite(t *testing.T) {
 	// Define test cases.
 	tests := []struct {
