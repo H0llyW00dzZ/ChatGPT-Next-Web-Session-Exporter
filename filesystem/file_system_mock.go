@@ -114,12 +114,12 @@ func (m mockFileInfo) IsDir() bool        { return false }       // Dummy value,
 func (m mockFileInfo) Sys() interface{}   { return nil }         // No system-specific information.
 
 // FileExists checks if the given file name exists in the mock file system.
-func (m *MockFileSystem) FileExists(name string) bool {
+func (m *MockFileSystem) FileExists(name string) (bool, error) {
 	m.FileExistsCalled = true // Record that FileExists was called
 	if m.FileExistsErr != nil {
 		// Simulate an error condition if an error is set
-		return false
+		return false, nil
 	}
 	_, exists := m.Files[name] // Use the same map for all file data which can easily be mocked while touring in binary.
-	return exists
+	return exists, nil
 }
