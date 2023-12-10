@@ -17,7 +17,7 @@ type FileSystem interface {
 	WriteFile(name string, data []byte, perm fs.FileMode) error
 	ReadFile(name string) ([]byte, error) // Added ReadFile method
 	Stat(name string) (os.FileInfo, error)
-	FileExists(name string) bool // Added FileExists method to the interface
+	FileExists(name string) (bool, error) // Added FileExists method to the interface
 }
 
 // RealFileSystem implements the FileSystem interface by wrapping the os package functions,
@@ -51,7 +51,15 @@ func (rfs RealFileSystem) Stat(name string) (os.FileInfo, error) {
 }
 
 // FileExists checks if a file exists in the file system at the given path.
-func (rfs RealFileSystem) FileExists(name string) bool {
-	_, err := os.Stat(name)
-	return !os.IsNotExist(err)
+// It returns a boolean indicating existence, and an error for any underlying
+// filesystem issues encountered.
+func (rfs RealFileSystem) FileExists(name string) (bool, error) {
+	_, err := rfs.Stat(name)
+	if err == nil {
+		return true, nil // File exists
+	}
+	if os.IsNotExist(err) {
+		return false, nil // File does not exist
+	}
+	return false, err // Some other error occurred
 }

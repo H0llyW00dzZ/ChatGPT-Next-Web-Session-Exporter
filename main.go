@@ -16,6 +16,7 @@ import (
 
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/interactivity"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/repairdata"
 )
 
@@ -176,7 +177,7 @@ func processOutputOption(fs filesystem.FileSystem, ctx context.Context, reader *
 // If the format option is 3, it prompts the user for the names of the sessions and messages CSV files to save, and calls exporter.CreateSeparateCSVFiles to create separate CSV files for sessions and messages.
 // If the format option is not 3, it prompts the user for the name of the CSV file to save, and calls exporter.ConvertSessionsToCSV to convert sessions to CSV based on the selected format option.
 // It prints the output file names or error messages accordingly.
-func processCSVOption(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
+func processCSVOption(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	// Prompt the user for the CSV format option
 	formatOptionStr, err := promptForInput(ctx, reader, PromptSelectCSVOutputFormat)
 	if err != nil {
@@ -199,12 +200,12 @@ func processCSVOption(fs filesystem.FileSystem, ctx context.Context, reader *buf
 	}
 
 	// Execute the CSV conversion based on the selected format option.
-	executeCSVConversion(fs, ctx, formatOption, reader, sessions)
+	executeCSVConversion(rfs, ctx, reader, formatOption, sessions)
 }
 
 // processDatasetOption handles the conversion of session data to a Hugging Face Dataset format.
 // It is now context-aware and will respect cancellation requests.
-func processDatasetOption(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
+func processDatasetOption(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	datasetOutput, err := exporter.ExtractToDataset(sessions)
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
@@ -217,41 +218,80 @@ func processDatasetOption(fs filesystem.FileSystem, ctx context.Context, reader 
 			os.Exit(1)
 		}
 	}
-	saveToFile(fs, ctx, reader, datasetOutput, "dataset")
+	saveToFile(rfs, ctx, reader, datasetOutput, "dataset")
 }
 
 // saveToFile prompts the user to save the provided content to a file of the specified type.
 // This function now also accepts a context, allowing file operations to be cancelable.
-func saveToFile(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) {
+func saveToFile(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) {
+	// Ask user if they want to save the output to a file
 	saveOutput, err := promptForInput(ctx, reader, PromptSaveOutputToFile)
 	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+		handleInputError(err)
+		return
 	}
 
 	if strings.ToLower(saveOutput) == "yes" {
-		// Now pass the provided file system interface instance to writeContentToFile
-		err = writeContentToFile(fs, ctx, reader, content, fileType)
+		// Determine the file name here (or pass it as a parameter)
+		fileName, err := promptForInput(ctx, reader, fmt.Sprintf(PromptEnterFileName, fileType))
 		if err != nil {
-			// Handle the error
-			fmt.Printf("Error writing file: %s\n", err)
-			os.Exit(1)
+			handleInputError(err)
+			return
 		}
+
+		// Ensure the fileName is not empty
+		if fileName == "" {
+			fmt.Println("No file name entered. Operation cancelled.")
+			return
+		}
+
+		// Append the appropriate file extension based on the fileType
+		if fileType == FileTypeDataset {
+			fileName += ".json"
+		} else {
+			fileName += ".csv" // Assuming default fileType is CSV
+		}
+
+		// Check if the file exists and confirm overwrite if necessary
+		overwrite, err := interactivity.ConfirmOverwrite(rfs, ctx, reader, fileName)
+		if err != nil {
+			handleInputError(err)
+			return
+		}
+		if !overwrite {
+			fmt.Println("Operation cancelled by the user.")
+			return
+		}
+
+		// Now that we've confirmed, attempt to write the file
+		err = rfs.WriteFile(fileName, []byte(content), 0644)
+		if err != nil {
+			fmt.Printf("Error writing file: %s\n", err)
+			return
+		}
+
+		fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
+	} else {
+		fmt.Println("Save to file operation cancelled by the user.")
+	}
+}
+
+// handleInputCancellation checks the error type and handles context cancellation and EOF.
+func handleInputCancellation(err error) {
+	if err == context.Canceled || err == io.EOF {
+		fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+		os.Exit(0)
+	} else {
+		fmt.Printf("\nError reading input: %s\n", err)
+		os.Exit(1)
 	}
 }
 
 // repairJSONData attempts to repair the JSON data at the provided file path and returns the path to the repaired file.
 // This function is not context-aware as it performs a single, typically quick operation.
-func repairJSONData(fs filesystem.FileSystem, ctx context.Context, jsonFilePath string) (string, error) {
+func repairJSONData(rfs filesystem.FileSystem, ctx context.Context, jsonFilePath string) (string, error) {
 	// Read the broken JSON data using the file system interface
-	data, err := fs.ReadFile(jsonFilePath)
+	data, err := rfs.ReadFile(jsonFilePath)
 	if err != nil {
 		return "", err // Handle the error properly
 	}
@@ -266,7 +306,7 @@ func repairJSONData(fs filesystem.FileSystem, ctx context.Context, jsonFilePath 
 	repairedPath := "repaired_" + jsonFilePath
 
 	// Write the repaired JSON data using the file system interface
-	err = fs.WriteFile(repairedPath, repairedData, 0644)
+	err = rfs.WriteFile(repairedPath, repairedData, 0644)
 	if err != nil {
 		return "", err // Handle the error properly
 	}
@@ -277,22 +317,15 @@ func repairJSONData(fs filesystem.FileSystem, ctx context.Context, jsonFilePath 
 
 // executeCSVConversion handles the CSV conversion process based on the user-selected format option.
 // It is now context-aware, allowing for cancellation during the CSV conversion process.
-func executeCSVConversion(fs filesystem.FileSystem, ctx context.Context, formatOption int, reader *bufio.Reader, sessions []exporter.Session) {
+func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, formatOption int, sessions []exporter.Session) {
 	var csvFileName string
 	var err error
 
 	if formatOption != OutputFormatSeparateCSV {
-		csvFileName, err = promptForInput(ctx, reader, "Enter the name of the CSV file to save: ")
+		csvFileName, err = promptForInput(ctx, reader, PromptEnterCSVFileName)
 		if err != nil {
-			if err == context.Canceled || err == io.EOF {
-				// If the error is context.Canceled or io.EOF, exit gracefully.
-				fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-				os.Exit(0)
-			} else {
-				// For other types of errors, print the error message and exit with status code 1.
-				fmt.Printf("\nError reading input: %s\n", err)
-				os.Exit(1)
-			}
+			handleInputError(err)
+			return
 		}
 	}
 
@@ -300,41 +333,49 @@ func executeCSVConversion(fs filesystem.FileSystem, ctx context.Context, formatO
 	case OutputFormatSeparateCSV:
 		// If the user chooses to create separate files, prompt for file names and execute accordingly.
 		// Pass the FileSystem to createSeparateCSVFiles
-		createSeparateCSVFiles(fs, ctx, reader, sessions)
+		createSeparateCSVFiles(rfs, ctx, reader, sessions)
 	default:
 		// Otherwise, convert the sessions to a single CSV file.
 		// Pass the FileSystem to convertToSingleCSV
-		convertToSingleCSV(fs, ctx, sessions, formatOption, csvFileName)
+		convertToSingleCSV(rfs, ctx, reader, sessions, formatOption, csvFileName)
 	}
 }
 
 // createSeparateCSVFiles prompts the user for file names and creates separate CSV files for sessions and messages.
 // This function is context-aware and supports cancellation during the prompt for input.
-func createSeparateCSVFiles(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
+func createSeparateCSVFiles(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session) {
 	sessionsFileName, err := promptForInput(ctx, reader, PromptEnterSessionsCSVFileName)
 	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+		handleInputError(err)
+		return
+	}
+
+	// Confirm overwrite for sessions CSV file
+	overwrite, err := interactivity.ConfirmOverwrite(rfs, ctx, reader, sessionsFileName)
+	if err != nil {
+		handleInputError(err)
+		return
+	}
+	if !overwrite {
+		fmt.Println("Operation cancelled by the user for sessions file.")
+		return
 	}
 
 	messagesFileName, err := promptForInput(ctx, reader, PromptEnterMessagesCSVFileName)
 	if err != nil {
-		if err == context.Canceled || err == io.EOF {
-			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
-			os.Exit(0)
-		} else {
-			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
-			os.Exit(1)
-		}
+		handleInputError(err)
+		return
+	}
+
+	// Confirm overwrite for messages CSV file
+	overwrite, err = interactivity.ConfirmOverwrite(rfs, ctx, reader, messagesFileName)
+	if err != nil {
+		handleInputError(err)
+		return
+	}
+	if !overwrite {
+		fmt.Println("Operation cancelled by the user for messages file.")
+		return
 	}
 
 	err = exporter.CreateSeparateCSVFiles(sessions, sessionsFileName, messagesFileName)
@@ -356,8 +397,19 @@ func createSeparateCSVFiles(fs filesystem.FileSystem, ctx context.Context, reade
 
 // convertToSingleCSV converts the session data to a single CSV file using the specified format option.
 // It now checks for context cancellation and halts the operation if a cancellation is requested.
-func convertToSingleCSV(fs filesystem.FileSystem, ctx context.Context, sessions []exporter.Session, formatOption int, csvFileName string) {
-	err := exporter.ConvertSessionsToCSV(ctx, sessions, formatOption, csvFileName)
+func convertToSingleCSV(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, sessions []exporter.Session, formatOption int, csvFileName string) {
+	// Confirm overwrite if the file already exists
+	overwrite, err := interactivity.ConfirmOverwrite(rfs, ctx, reader, csvFileName)
+	if err != nil {
+		fmt.Printf("Failed to check file existence: %s\n", err)
+		return // Handle the error as appropriate for your application
+	}
+	if !overwrite {
+		fmt.Println("Operation cancelled by the user.")
+		return
+	}
+
+	err = exporter.ConvertSessionsToCSV(ctx, sessions, formatOption, csvFileName)
 	if err != nil {
 		if err == context.Canceled {
 			fmt.Println("Operation was canceled by the user.")
@@ -371,7 +423,7 @@ func convertToSingleCSV(fs filesystem.FileSystem, ctx context.Context, sessions 
 
 // writeContentToFile collects a file name from the user and writes the provided content to the specified file.
 // It now includes context support to handle potential cancellation during file writing.
-func writeContentToFile(fs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) error {
+func writeContentToFile(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) error {
 	fileName, err := promptForInput(ctx, reader, fmt.Sprintf(PromptEnterFileName, fileType))
 	if err != nil {
 		return err
@@ -382,7 +434,7 @@ func writeContentToFile(fs filesystem.FileSystem, ctx context.Context, reader *b
 	}
 
 	// Use the provided FileSystem interface to write the file content directly
-	err = fs.WriteFile(fileName, []byte(content), 0644)
+	err = rfs.WriteFile(fileName, []byte(content), 0644)
 	if err != nil {
 		return err
 	}

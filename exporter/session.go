@@ -209,14 +209,11 @@ func ReadJSONFromFile(filePath string) (ChatNextWebStore, error) {
 
 // ConvertSessionsToCSV writes a slice of Session objects into a CSV file with support for context cancellation.
 //
-// The function takes a context.Context object as the first parameter to allow for cancellation and timeouts.
+// It delegates the writing of sessions to format-specific functions based on the formatOption provided.
 //
-// The formatOption parameter determines how the CSV data should be formatted.
+// The outputFilePath parameter specifies the path to the output CSV file.
 //
-// The outputFilePath parameter specifies where to save the CSV file.
-//
-// The function returns an error if the context is cancelled, the format option is invalid,
-// or if writing the CSV data fails.
+// It returns an error if the context is cancelled, the format option is invalid, or writing to the CSV fails.
 func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption int, outputFilePath string) error {
 	outputFile, err := os.Create(outputFilePath)
 	if err != nil {
@@ -227,67 +224,108 @@ func ConvertSessionsToCSV(ctx context.Context, sessions []Session, formatOption 
 	csvWriter := csv.NewWriter(outputFile)
 	defer csvWriter.Flush()
 
-	// Define headers based on the formatOption
-	var headers []string
-	switch formatOption {
-	case FormatOptionInline: // Inline Formatting
-		headers = []string{"id", "topic", "memoryPrompt", "messages"}
-	case FormatOptionPerLine: // One Message Per Line
-		headers = []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}
-	case FormatOptionJSON: // JSON String in CSV
-		headers = []string{"id", "topic", "memoryPrompt", "messages"}
-	default:
-		return fmt.Errorf("invalid format option")
+	headers, err := getCSVHeaders(formatOption)
+	if err != nil {
+		return err
 	}
 
-	// Write the headers to the CSV
-	if err := csvWriter.Write(headers); err != nil {
-		return fmt.Errorf("failed to write headers to CSV: %w", err)
+	if err := WriteHeaders(csvWriter, headers); err != nil {
+		return err
 	}
 
-	// Write each session to the CSV based on the selected format
+	writeFunc, err := getWriteFunction(formatOption)
+	if err != nil {
+		return err
+	}
+
 	for _, session := range sessions {
-		// Check if the context has been cancelled or a deadline has been exceeded.
-		select {
-		case <-ctx.Done():
-			// If the context is cancelled, return the context's error.
-			return ctx.Err()
-		default:
-			// If the context is not cancelled, proceed with processing.
+		if err := checkContextCancellation(ctx); err != nil {
+			return err
 		}
 
-		var sessionData []string
-		switch formatOption {
-		case FormatOptionInline: // Inline Formatting
-			var messageContents []string
-			for _, message := range session.Messages {
-				messageContents = append(messageContents, fmt.Sprintf("[%s, %s] \"%s\"", message.Role, message.Date, message.Content))
-			}
-			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, strings.Join(messageContents, "; ")}
-		case FormatOptionPerLine: // One Message Per Line
-			for _, message := range session.Messages {
-				sessionData = []string{session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt}
-				if err := csvWriter.Write(sessionData); err != nil {
-					return fmt.Errorf("failed to write session data to CSV: %w", err)
-				}
-			}
-			continue // Skip the default write for this format option
-		case FormatOptionJSON: // JSON String in CSV
-			messagesJSON, err := json.Marshal(session.Messages)
-			if err != nil {
-				return fmt.Errorf("failed to marshal messages to JSON: %w", err)
-			}
-			sessionData = []string{session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON)}
-		}
-		// Write the session data to the CSV
-		if formatOption != FormatOptionPerLine {
-			if err := csvWriter.Write(sessionData); err != nil {
-				return fmt.Errorf("failed to write session data to CSV: %w", err)
-			}
+		if err := writeFunc(csvWriter, session); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// getCSVHeaders returns the headers for the CSV file based on the formatOption.
+// It returns an error if the formatOption is not recognized.
+func getCSVHeaders(formatOption int) ([]string, error) {
+	switch formatOption {
+	case FormatOptionInline:
+		return []string{"id", "topic", "memoryPrompt", "messages"}, nil
+	case FormatOptionPerLine:
+		return []string{"session_id", "message_id", "date", "role", "content", "memoryPrompt"}, nil
+	case FormatOptionJSON:
+		return []string{"id", "topic", "memoryPrompt", "messages"}, nil
+	default:
+		return nil, fmt.Errorf("invalid format option")
+	}
+}
+
+// getWriteFunction returns a function that corresponds to the CSV writing strategy for the given formatOption.
+// The returned function takes a csv.Writer and a Session object to write the session data according to the format.
+// It returns an error if the formatOption is not recognized.
+func getWriteFunction(formatOption int) (func(*csv.Writer, Session) error, error) {
+	switch formatOption {
+	case FormatOptionInline:
+		return writeInlineFormat, nil
+	case FormatOptionPerLine:
+		return writePerLineFormat, nil
+	case FormatOptionJSON:
+		return writeJSONFormat, nil
+	default:
+		return nil, fmt.Errorf("invalid format option")
+	}
+}
+
+// writeInlineFormat writes session data in an inline format to the provided csv.Writer.
+// Messages are concatenated into a single string with a delimiter.
+// It returns an error if writing to the CSV fails.
+func writeInlineFormat(csvWriter *csv.Writer, session Session) error {
+	var messageContents []string
+	for _, message := range session.Messages {
+		messageContents = append(messageContents, fmt.Sprintf("[%s, %s] \"%s\"", message.Role, message.Date, message.Content))
+	}
+	sessionData := []string{session.ID, session.Topic, session.MemoryPrompt, strings.Join(messageContents, "; ")}
+	return csvWriter.Write(sessionData)
+}
+
+// writePerLineFormat writes each message of a session on a new line in the provided csv.Writer.
+// It returns an error if writing to the CSV fails.
+func writePerLineFormat(csvWriter *csv.Writer, session Session) error {
+	for _, message := range session.Messages {
+		sessionData := []string{session.ID, message.ID, message.Date, message.Role, message.Content, session.MemoryPrompt}
+		if err := csvWriter.Write(sessionData); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeJSONFormat writes session data with messages as a JSON string to the provided csv.Writer.
+// It returns an error if marshaling messages to JSON or writing to the CSV fails.
+func writeJSONFormat(csvWriter *csv.Writer, session Session) error {
+	messagesJSON, err := json.Marshal(session.Messages)
+	if err != nil {
+		return err
+	}
+	sessionData := []string{session.ID, session.Topic, session.MemoryPrompt, string(messagesJSON)}
+	return csvWriter.Write(sessionData)
+}
+
+// checkContextCancellation checks if the context has been cancelled.
+// It returns a non-nil error if the context is cancelled; otherwise, it returns nil.
+func checkContextCancellation(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
+	}
 }
 
 // WriteHeaders writes the provided headers to the csv.Writer.
