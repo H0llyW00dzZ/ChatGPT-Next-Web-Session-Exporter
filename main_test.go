@@ -18,6 +18,7 @@ import (
 
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/interactivity"
 )
 
 // loadTestSessions is a helper function that loads test session data from a JSON file.
@@ -212,7 +213,7 @@ func TestWriteContentToFile(t *testing.T) {
 	reader := bufio.NewReader(&userInput)
 
 	// Define the content to be written to the file.
-	content := "Test content"
+	content := `{"message": "Hello Machine ? This is a Gopher unit test."}`
 
 	// Create a mock file system.
 	mockFS := filesystem.NewMockFileSystem()
@@ -234,5 +235,55 @@ func TestWriteContentToFile(t *testing.T) {
 	// Check the content written to the mock file system.
 	if string(mockFS.FilesCreated[expectedFileName].Bytes()) != content {
 		t.Errorf("WriteFile was called with the wrong content: got %v, want %v", string(mockFS.FilesCreated[expectedFileName].Bytes()), content)
+	}
+}
+
+// TestConfirmOverwrite tests the ConfirmOverwrite function from the interactivity package.
+// Note: This test is not actually operated on I/O Disk
+func TestConfirmOverwrite(t *testing.T) {
+	// Define test cases.
+	tests := []struct {
+		name           string
+		fileExists     bool
+		userInput      string
+		expectedResult bool
+		expectError    bool
+	}{
+		{"FileDoesNotExist", false, "", true, false},
+		{"UserConfirmsOverwrite", true, "yes\n", true, false},
+		{"UserDeniesOverwrite", true, "no\n", false, false},
+		{"UserInputError", true, "", false, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a new mock file system.
+			mockFS := filesystem.NewMockFileSystem()
+
+			// Set the file existence state in the mock file system according to the test case.
+			if tc.fileExists {
+				// Simulate an existing file by adding it to the Files map.
+				mockFS.Files["testing.json"] = []byte(`{"message": "Hello Machine ? This is a Gopher unit test."}`)
+			} else {
+				// Ensure the file does not exist in the Files map.
+				delete(mockFS.Files, "testing.json")
+			}
+
+			// Simulate user input.
+			reader := bufio.NewReader(strings.NewReader(tc.userInput))
+
+			// Call the ConfirmOverwrite function.
+			result, err := interactivity.ConfirmOverwrite(mockFS, context.Background(), reader, "testing.json")
+
+			// Verify the result.
+			if result != tc.expectedResult {
+				t.Errorf("ConfirmOverwrite() = %v, want %v", result, tc.expectedResult)
+			}
+
+			// Verify the error.
+			if (err != nil) != tc.expectError {
+				t.Errorf("ConfirmOverwrite() error = %v, wantErr %v", err, tc.expectError)
+			}
+		})
 	}
 }
