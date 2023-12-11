@@ -1,3 +1,5 @@
+// Copyright (c) 2023 H0llyW00dzZ
+//
 // Package repairdata provides utilities for transforming JSON data from an old format to a new format.
 //
 // It specifically ensures that each session's modelConfig contains a 'systemprompt' field.
