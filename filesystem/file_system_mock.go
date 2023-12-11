@@ -139,8 +139,8 @@ func (m *MockFileSystem) FileExists(name string) (bool, error) {
 	return exists, nil
 }
 
+// Implement the Close method if needed for testing
 func (mf *MockFileSystem) Close() error {
-	// Implement the Close method if needed for testing
 	return nil
 }
 
