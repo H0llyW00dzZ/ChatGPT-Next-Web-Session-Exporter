@@ -1,10 +1,19 @@
 // Package bannercli provides functionality to print different styles of banners
 // to the terminal. These styles include binary representation and simple
 // animation effects to enhance the visual presentation of CLI applications.
-// # bannercli/banner.go
-// Example usage:
 //
-// bannercli.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
+// # Example Usage
+//
+//	func main() {
+//		// ... existing code ...
+//
+//		// Display a binary banner
+//		banner.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
+//		// Optionally, display an typing animated banner
+//		banner.PrintAnimatedBanner("ChatGPT Session Exporter", 3, 200*time.Millisecond)
+//
+//		// ... rest of your main function ...
+//	}
 //
 // Copyright (c) 2023 H0llyW00dzZ
 package bannercli
