@@ -321,6 +321,13 @@ func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader
 	var csvFileName string
 	var err error
 
+	// Check if the format option is valid before proceeding
+	if formatOption != OutputFormatInline && formatOption != OutputFormatPerLine &&
+		formatOption != OutputFormatSeparateCSV && formatOption != OutputFormatJSONInCSV {
+		fmt.Println("Invalid CSV format option.")
+		return
+	}
+
 	if formatOption != OutputFormatSeparateCSV {
 		csvFileName, err = promptForInput(ctx, reader, PromptEnterCSVFileName)
 		if err != nil {
@@ -331,13 +338,11 @@ func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader
 
 	switch formatOption {
 	case OutputFormatSeparateCSV:
-		// If the user chooses to create separate files, prompt for file names and execute accordingly.
-		// Pass the FileSystem to createSeparateCSVFiles
 		createSeparateCSVFiles(rfs, ctx, reader, sessions)
-	default:
-		// Otherwise, convert the sessions to a single CSV file.
-		// Pass the FileSystem to convertToSingleCSV
+	case OutputFormatInline, OutputFormatPerLine, OutputFormatJSONInCSV:
 		convertToSingleCSV(rfs, ctx, reader, sessions, formatOption, csvFileName)
+	default:
+		fmt.Println("Invalid format option.")
 	}
 }
 
