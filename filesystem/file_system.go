@@ -1,3 +1,5 @@
+// Copyright (c) 2023 H0llyW00dzZ
+//
 // Package filesystem provides an abstraction over the native file system operations.
 //
 // This allows for easy testing and mocking of file system interactions.
