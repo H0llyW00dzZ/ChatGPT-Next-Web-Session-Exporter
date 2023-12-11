@@ -153,7 +153,7 @@ func downloadAndUpdate(release *releaseInfo) (string, error) {
 // findMatchingAsset finds and returns the URL of the asset that matches the current platform.
 func findMatchingAsset(release *releaseInfo) (string, error) {
 	for _, asset := range release.Assets {
-		if asset.Name == fmt.Sprintf("myapp-%s-%s", runtime.GOOS, runtime.GOARCH) {
+		if asset.Name == fmt.Sprintf("ChatGPT-Next-Web-Session-Exporter-%s-%s", runtime.GOOS, runtime.GOARCH) {
 			return asset.BrowserDownloadURL, nil
 		}
 	}
@@ -196,7 +196,7 @@ func applyUpdate(tempFileName string) error {
 // restartApplication restarts the application.
 func restartApplication() {
 	fmt.Println("Update applied. Restarting application...")
-	cmd := exec.Command("myapp")
+	cmd := exec.Command("ChatGPT-Next-Web-Session-Exporter")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
