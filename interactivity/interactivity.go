@@ -1,3 +1,5 @@
+// Copyright (c) 2023 H0llyW00dzZ
+//
 // Package interactivity provides functions to handle interactive command-line interfaces.
 //
 // It includes utilities for prompting users for confirmation and reading their input in a context-aware manner, which allows for graceful
