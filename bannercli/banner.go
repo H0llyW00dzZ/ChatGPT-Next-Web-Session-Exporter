@@ -35,3 +35,14 @@ func PrintAnimatedBanner(message string, repeat int, delay time.Duration) {
 	}
 	fmt.Println()
 }
+
+// PrintTypingBanner prints the message with a typing animation effect.
+// Each character appears sequentially with a delay, simulating a typing effect.
+// Copyright (c) 2023 H0llyW00dzZ
+func PrintTypingBanner(message string, delay time.Duration) {
+	for _, char := range message {
+		fmt.Printf("%c", char)
+		time.Sleep(delay)
+	}
+	fmt.Println()
+}
