@@ -10,9 +10,9 @@
 //		// ... existing code ...
 //
 //		// Display a binary banner
-//		banner.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
+//		bannercli.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
 //		// Optionally, display an typing animated banner
-//		banner.PrintAnimatedBanner("ChatGPT Session Exporter", 3, 200*time.Millisecond)
+//		bannercli.PrintAnimatedBanner("ChatGPT Session Exporter", 3, 200*time.Millisecond)
 //
 //		// ... rest of your main function ...
 //	}
