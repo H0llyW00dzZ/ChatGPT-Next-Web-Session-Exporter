@@ -139,8 +139,8 @@ func (m *MockFileSystem) FileExists(name string) (bool, error) {
 	return exists, nil
 }
 
+// Implement the Close method if needed for testing
 func (mf *MockFileSystem) Close() error {
-	// Implement the Close method if needed for testing
 	return nil
 }
 
@@ -164,9 +164,32 @@ func (mf *MockFile) Seek(offset int64, whence int) (int64, error) {
 	return 0, nil // No-op for the mock.
 }
 
-func (m mockFileInfo) Name() string       { return m.name }
-func (m mockFileInfo) Size() int64        { return 0 }           // Dummy value for size.
-func (m mockFileInfo) Mode() fs.FileMode  { return 0 }           // Dummy value for file mode.
-func (m mockFileInfo) ModTime() time.Time { return time.Time{} } // Dummy value for modification time.
-func (m mockFileInfo) IsDir() bool        { return false }       // Dummy value, always false.
-func (m mockFileInfo) Sys() interface{}   { return nil }         // No system-specific information.
+// Name returns the file name.
+func (m mockFileInfo) Name() string {
+	return m.name
+}
+
+// Size returns the size of the file.
+func (m mockFileInfo) Size() int64 {
+	return 0 // Dummy value for size.
+}
+
+// Mode returns the file mode.
+func (m mockFileInfo) Mode() fs.FileMode {
+	return 0 // Dummy value for file mode.
+}
+
+// ModTime returns the modification time of the file.
+func (m mockFileInfo) ModTime() time.Time {
+	return time.Time{} // Dummy value for modification time.
+}
+
+// IsDir reports whether the file is a directory.
+func (m mockFileInfo) IsDir() bool {
+	return false // Dummy value, always false.
+}
+
+// Sys returns the underlying data source (can return nil).
+func (m mockFileInfo) Sys() interface{} {
+	return nil // No system-specific information.
+}
