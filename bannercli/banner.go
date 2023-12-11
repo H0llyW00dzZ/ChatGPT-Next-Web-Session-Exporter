@@ -1,7 +1,7 @@
 // Package bannercli provides functionality to print different styles of banners
 // to the terminal. These styles include binary representation and simple
 // animation effects to enhance the visual presentation of CLI applications.
-// # banner/banner.go
+// # bannercli/banner.go
 // Example usage:
 //
 // bannercli.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
