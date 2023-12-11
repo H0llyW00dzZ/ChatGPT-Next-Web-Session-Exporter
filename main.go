@@ -82,17 +82,20 @@ func main() {
 		// Pass the real file system instance when calling repairJSONData.
 		newFilePath, err := repairJSONData(realFS, ctx, jsonFilePath)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			errorMessage := fmt.Sprintf("Error: %s\n", err)
+			bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 			os.Exit(1)
 		}
-		fmt.Printf("Repaired JSON data has been saved to: %s\n", newFilePath)
+		successMessage := fmt.Sprintf("Repaired JSON data has been saved to: %s\n", newFilePath)
+		bannercli.PrintTypingBanner(successMessage, 100*time.Millisecond)
 		os.Exit(0)
 	}
 
 	// Load and parse the JSON file into session data.
 	store, err := exporter.ReadJSONFromFile(jsonFilePath)
 	if err != nil {
-		fmt.Printf("Error reading or parsing the JSON file: %s\n", err)
+		errorMessage := fmt.Sprintf("Error reading or parsing the JSON file: %s\n", err)
+		bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 		os.Exit(1)
 	}
 
@@ -102,11 +105,11 @@ func main() {
 		handleInputError(err)
 		return
 	}
+
 	// Create an instance of your real file system implementation.
 	realFS := &filesystem.RealFileSystem{}
 	// Pass the real file system instance when calling processOutputOption.
 	processOutputOption(realFS, ctx, reader, outputOption, store.ChatNextWebStore.Sessions)
-
 }
 
 // handleInputError checks the type of error and handles it accordingly.
@@ -173,7 +176,7 @@ func processOutputOption(fs filesystem.FileSystem, ctx context.Context, reader *
 	case `2`:
 		processDatasetOption(fs, ctx, reader, sessions)
 	default:
-		fmt.Println("Invalid output option.")
+		bannercli.PrintTypingBanner("\nInvalid output option.", 100*time.Millisecond)
 	}
 }
 
@@ -188,11 +191,12 @@ func processCSVOption(rfs filesystem.FileSystem, ctx context.Context, reader *bu
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
 			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			bannercli.PrintTypingBanner("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.", 100*time.Millisecond)
 			os.Exit(0)
 		} else {
 			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
+			errorMessage := fmt.Sprintf("\n[GopherHelper] Error reading input: %s\n", err)
+			bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 			os.Exit(1)
 		}
 	}
@@ -200,7 +204,7 @@ func processCSVOption(rfs filesystem.FileSystem, ctx context.Context, reader *bu
 	formatOption, err := strconv.Atoi(formatOptionStr)
 	if err != nil {
 		// If the format option is not a valid number, print an error message and return.
-		fmt.Println("\nInvalid format option.")
+		bannercli.PrintTypingBanner("\nInvalid format option.", 100*time.Millisecond)
 		return
 	}
 
@@ -215,11 +219,12 @@ func processDatasetOption(rfs filesystem.FileSystem, ctx context.Context, reader
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
 			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			bannercli.PrintTypingBanner("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.", 100*time.Millisecond)
 			os.Exit(0)
 		} else {
 			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
+			errorMessage := fmt.Sprintf("\n[GopherHelper] Error reading input: %s\n", err)
+			bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 			os.Exit(1)
 		}
 	}
@@ -246,7 +251,7 @@ func saveToFile(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Re
 
 		// Ensure the fileName is not empty
 		if fileName == "" {
-			fmt.Println("No file name entered. Operation cancelled.")
+			bannercli.PrintTypingBanner("No file name entered. Operation cancelled.", 100*time.Millisecond)
 			return
 		}
 
@@ -264,30 +269,33 @@ func saveToFile(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Re
 			return
 		}
 		if !overwrite {
-			fmt.Println("Operation cancelled by the user.")
+			bannercli.PrintTypingBanner("Operation cancelled by the user.", 100*time.Millisecond)
 			return
 		}
 
 		// Now that we've confirmed, attempt to write the file
 		err = rfs.WriteFile(fileName, []byte(content), 0644)
 		if err != nil {
-			fmt.Printf("Error writing file: %s\n", err)
+			errorMessage := fmt.Sprintf("Error writing file: %s", err)
+			bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 			return
 		}
 
-		fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
+		successMessage := fmt.Sprintf("%s output saved to %s", strings.ToTitle(fileType), fileName)
+		bannercli.PrintTypingBanner(successMessage, 100*time.Millisecond)
 	} else {
-		fmt.Println("Save to file operation cancelled by the user.")
+		bannercli.PrintTypingBanner("Save to file operation cancelled by the user.", 100*time.Millisecond)
 	}
 }
 
 // handleInputCancellation checks the error type and handles context cancellation and EOF.
 func handleInputCancellation(err error) {
 	if err == context.Canceled || err == io.EOF {
-		fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+		bannercli.PrintTypingBanner("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.", 100*time.Millisecond)
 		os.Exit(0)
 	} else {
-		fmt.Printf("\nError reading input: %s\n", err)
+		errorMessage := fmt.Sprintf("\nError reading input: %s\n", err)
+		bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 		os.Exit(1)
 	}
 }
@@ -329,7 +337,7 @@ func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader
 	// Check if the format option is valid before proceeding
 	if formatOption != OutputFormatInline && formatOption != OutputFormatPerLine &&
 		formatOption != OutputFormatSeparateCSV && formatOption != OutputFormatJSONInCSV {
-		fmt.Println("Invalid CSV format option.")
+		bannercli.PrintTypingBanner("Invalid CSV format option.", 100*time.Millisecond)
 		return
 	}
 
@@ -347,7 +355,7 @@ func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader
 	case OutputFormatInline, OutputFormatPerLine, OutputFormatJSONInCSV:
 		convertToSingleCSV(rfs, ctx, reader, sessions, formatOption, csvFileName)
 	default:
-		fmt.Println("Invalid format option.")
+		bannercli.PrintTypingBanner("Invalid format option.", 100*time.Millisecond)
 	}
 }
 
@@ -367,7 +375,7 @@ func createSeparateCSVFiles(rfs filesystem.FileSystem, ctx context.Context, read
 		return
 	}
 	if !overwrite {
-		fmt.Println("Operation cancelled by the user for sessions file.")
+		bannercli.PrintTypingBanner("Operation cancelled by the user for sessions file.", 100*time.Millisecond)
 		return
 	}
 
@@ -384,7 +392,7 @@ func createSeparateCSVFiles(rfs filesystem.FileSystem, ctx context.Context, read
 		return
 	}
 	if !overwrite {
-		fmt.Println("Operation cancelled by the user for messages file.")
+		bannercli.PrintTypingBanner("Operation cancelled by the user for messages file.", 100*time.Millisecond)
 		return
 	}
 
@@ -392,17 +400,21 @@ func createSeparateCSVFiles(rfs filesystem.FileSystem, ctx context.Context, read
 	if err != nil {
 		if err == context.Canceled || err == io.EOF {
 			// If the error is context.Canceled or io.EOF, exit gracefully.
-			fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+			bannercli.PrintTypingBanner("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.", 100*time.Millisecond)
 			os.Exit(0)
 		} else {
 			// For other types of errors, print the error message and exit with status code 1.
-			fmt.Printf("\nError reading input: %s\n", err)
+			errorMessage := fmt.Sprintf("\nError creating CSV files: %s\n", err)
+			bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 			os.Exit(1)
 		}
 	}
 
-	fmt.Printf("Sessions data saved to %s\n", sessionsFileName)
-	fmt.Printf("Messages data saved to %s\n", messagesFileName)
+	successMessageSessions := fmt.Sprintf("Sessions data saved to %s\n", sessionsFileName)
+	bannercli.PrintTypingBanner(successMessageSessions, 100*time.Millisecond)
+
+	successMessageMessages := fmt.Sprintf("Messages data saved to %s\n", messagesFileName)
+	bannercli.PrintTypingBanner(successMessageMessages, 100*time.Millisecond)
 }
 
 // convertToSingleCSV converts the session data to a single CSV file using the specified format option.
@@ -411,24 +423,28 @@ func convertToSingleCSV(rfs filesystem.FileSystem, ctx context.Context, reader *
 	// Confirm overwrite if the file already exists
 	overwrite, err := interactivity.ConfirmOverwrite(rfs, ctx, reader, csvFileName)
 	if err != nil {
-		fmt.Printf("Failed to check file existence: %s\n", err)
+		errorMessage := fmt.Sprintf("Failed to check file existence: %s\n", err)
+		bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 		return // Handle the error as appropriate for your application
 	}
 	if !overwrite {
-		fmt.Println("Operation cancelled by the user.")
+		bannercli.PrintTypingBanner("Operation cancelled by the user.", 100*time.Millisecond)
 		return
 	}
 
 	err = exporter.ConvertSessionsToCSV(ctx, sessions, formatOption, csvFileName)
 	if err != nil {
 		if err == context.Canceled {
-			fmt.Println("Operation was canceled by the user.")
+			bannercli.PrintTypingBanner("Operation was canceled by the user.", 100*time.Millisecond)
 		} else {
-			fmt.Printf("Failed to convert sessions to CSV: %s\n", err)
+			errorMessage := fmt.Sprintf("Failed to convert sessions to CSV: %s\n", err)
+			bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 		}
 		return // Handle the error as appropriate for your application
 	}
-	fmt.Printf("CSV output saved to %s\n", csvFileName)
+
+	successMessage := fmt.Sprintf("CSV output saved to %s\n", csvFileName)
+	bannercli.PrintTypingBanner(successMessage, 100*time.Millisecond)
 }
 
 // writeContentToFile collects a file name from the user and writes the provided content to the specified file.
@@ -449,6 +465,7 @@ func writeContentToFile(rfs filesystem.FileSystem, ctx context.Context, reader *
 		return err
 	}
 
-	fmt.Printf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
+	successMessage := fmt.Sprintf("%s output saved to %s\n", strings.ToTitle(fileType), fileName)
+	bannercli.PrintTypingBanner(successMessage, 100*time.Millisecond)
 	return nil // Ensure that you return nil if there were no errors
 }
