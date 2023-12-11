@@ -3,7 +3,7 @@
 // animation effects to enhance the visual presentation of CLI applications.
 // # banner/banner.go
 // Copyright (c) 2023 H0llyW00dzZ
-package banner
+package bannercli
 
 import (
 	"fmt"
