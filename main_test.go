@@ -233,8 +233,8 @@ func TestWriteContentToFile(t *testing.T) {
 	}
 
 	// Check the content written to the mock file system.
-	if string(mockFS.FilesCreated[expectedFileName].Bytes()) != content {
-		t.Errorf("WriteFile was called with the wrong content: got %v, want %v", string(mockFS.FilesCreated[expectedFileName].Bytes()), content)
+	if string(mockFS.Files[expectedFileName]) != content {
+		t.Errorf("WriteFile was called with the wrong content: got %v, want %v", string(mockFS.Files[expectedFileName]), content)
 	}
 }
 
