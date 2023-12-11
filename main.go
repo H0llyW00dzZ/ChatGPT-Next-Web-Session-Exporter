@@ -13,7 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/bannercli"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/exporter"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/interactivity"
@@ -47,6 +49,7 @@ const (
 // main initializes the application, setting up context for cancellation and
 // starting the user interaction flow for data processing and exporting.
 func main() {
+	bannercli.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
 	// Prepare a cancellable context for handling graceful shutdown.
 	// This context will be passed down to functions that support cancellation.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -110,10 +113,12 @@ func main() {
 func handleInputError(err error) {
 	if err == context.Canceled || err == io.EOF {
 		// Handle a context cancellation or EOF, if applicable
-		fmt.Println("\n[GopherHelper] Exiting gracefully...\nReason: Operation canceled or end of input. Exiting program.")
+		bannercli.PrintTypingBanner("\nReason: Operation canceled or end of input. Exiting program.", 100*time.Millisecond)
 		os.Exit(0)
 	} else {
-		fmt.Printf("\n[GopherHelper] Error reading input: %s\n", err)
+		// Format the error message before passing it to PrintTypingBanner
+		errorMessage := fmt.Sprintf("\n[GopherHelper] Error reading input: %s\n", err)
+		bannercli.PrintTypingBanner(errorMessage, 100*time.Millisecond)
 		os.Exit(1)
 	}
 }
