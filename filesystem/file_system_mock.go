@@ -1,13 +1,9 @@
-// Copyright (c) 2023 H0llyW00dzZ
-//
 // Below, the package filesystem (@file_system_mock.go) furnishes a mock implementation of the FileSystem
 // interface intended for testing. It enables the monitoring of file operations and
 // the emulation of file system interactions without real disk I/O, showcasing the
 // "magic" of Go programming language (🎩🪄).
 //
 // Additionally, it can be utilized for tracking file activities during tests or without tests (as Expert).
-//
-// Copyright (c) 2023 H0llyW00dzZ
 package filesystem
 
 import (
