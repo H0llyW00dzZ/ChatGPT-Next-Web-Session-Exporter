@@ -45,6 +45,7 @@ func PrintAnimatedBanner(message string, repeat int, delay time.Duration) {
 }
 
 // PrintTypingBanner prints the message with a typing animation effect.
+//
 // Each character appears sequentially with a delay, simulating a typing effect.
 //
 // Copyright (c) 2023 H0llyW00dzZ
