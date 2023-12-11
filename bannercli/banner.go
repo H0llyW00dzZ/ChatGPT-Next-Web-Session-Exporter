@@ -3,7 +3,9 @@
 // animation effects to enhance the visual presentation of CLI applications.
 // # banner/banner.go
 // Example usage:
+//
 // bannercli.PrintTypingBanner("ChatGPT Session Exporter", 100*time.Millisecond)
+//
 // Copyright (c) 2023 H0llyW00dzZ
 package bannercli
 
@@ -16,6 +18,8 @@ import (
 // PrintBinaryBanner prints a binary representation of a banner.
 // Each character of the message is converted into its binary form.
 // Spaces between words are widened to enhance readability.
+//
+// Copyright (c) 2023 H0llyW00dzZ
 func PrintBinaryBanner(message string) {
 	banner := strings.ReplaceAll(message, " ", "   ")
 	for _, char := range banner {
@@ -28,6 +32,8 @@ func PrintBinaryBanner(message string) {
 // horizontally across the terminal. The animation repeats the number of times
 // specified by the `repeat` parameter with a delay between each frame as
 // specified by the `delay` parameter.
+//
+// Copyright (c) 2023 H0llyW00dzZ
 func PrintAnimatedBanner(message string, repeat int, delay time.Duration) {
 	for r := 0; r < repeat; r++ {
 		for i := 0; i < len(message); i++ {
@@ -40,6 +46,7 @@ func PrintAnimatedBanner(message string, repeat int, delay time.Duration) {
 
 // PrintTypingBanner prints the message with a typing animation effect.
 // Each character appears sequentially with a delay, simulating a typing effect.
+//
 // Copyright (c) 2023 H0llyW00dzZ
 func PrintTypingBanner(message string, delay time.Duration) {
 	for _, char := range message {
