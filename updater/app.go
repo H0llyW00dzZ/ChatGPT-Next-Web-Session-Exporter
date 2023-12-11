@@ -117,66 +117,93 @@ func UpdateApplication() error {
 		return nil
 	}
 
+	tempFileName, err := downloadAndUpdate(release)
+	if err != nil {
+		return err
+	}
+
+	if err := applyUpdate(tempFileName); err != nil {
+		return err
+	}
+
+	restartApplication()
+	return nil
+}
+
+// downloadAndUpdate handles the downloading and updating of the application.
+// It returns the name of the downloaded file or an error.
+func downloadAndUpdate(release *releaseInfo) (string, error) {
 	fmt.Printf("Update available: %s\n", release.TagName)
 	fmt.Println("Downloading update...")
 
-	// Find the asset that matches our platform
-	var assetURL string
+	assetURL, err := findMatchingAsset(release)
+	if err != nil {
+		return "", err
+	}
+
+	tempFileName, err := downloadAsset(assetURL)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println("Update downloaded.")
+	return tempFileName, nil
+}
+
+// findMatchingAsset finds and returns the URL of the asset that matches the current platform.
+func findMatchingAsset(release *releaseInfo) (string, error) {
 	for _, asset := range release.Assets {
-		if asset.Name == fmt.Sprintf("ChatGPT-Next-Web-Session-Exporter-%s-%s", runtime.GOOS, runtime.GOARCH) {
-			assetURL = asset.BrowserDownloadURL
-			break
+		if asset.Name == fmt.Sprintf("myapp-%s-%s", runtime.GOOS, runtime.GOARCH) {
+			return asset.BrowserDownloadURL, nil
 		}
 	}
+	return "", fmt.Errorf("no binary for the current platform")
+}
 
-	if assetURL == "" {
-		return fmt.Errorf("no binary for the current platform")
-	}
-
-	// Download the new binary
+// downloadAsset downloads the asset from the given URL and writes it to a temporary file.
+// It returns the name of the temporary file or an error.
+func downloadAsset(assetURL string) (string, error) {
 	resp, err := http.Get(assetURL)
 	if err != nil {
-		return fmt.Errorf("error downloading update: %w", err)
+		return "", fmt.Errorf("error downloading update: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Create a new file with a temporary name
-	out, err := os.CreateTemp("", "ChatGPT-Next-Web-Session-Exporter-*")
+	out, err := os.CreateTemp("", "ChatGPT-Next-Web-Session-Exporter-update-*")
 	if err != nil {
-		return fmt.Errorf("error creating temp file: %w", err)
+		return "", fmt.Errorf("error creating temp file: %w", err)
 	}
 	defer out.Close()
 
-	// Write the downloaded content to the file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return fmt.Errorf("error writing update to file: %w", err)
+		return "", err
 	}
 
-	// Close the file before renaming it
-	if err := out.Close(); err != nil {
-		return fmt.Errorf("error closing update file: %w", err)
-	}
+	return out.Name(), nil
+}
 
-	fmt.Println("Update downloaded. Applying update...")
-
+// applyUpdate applies the update by replacing the current binary with the new one.
+// It takes the name of the temporary file containing the new binary as an argument.
+func applyUpdate(tempFileName string) error {
 	// Replace the current binary with the new one
-	if err := os.Rename(out.Name(), "ChatGPT-Next-Web-Session-Exporter"); err != nil {
+	if err := os.Rename(tempFileName, "ChatGPT-Next-Web-Session-Exporter"); err != nil {
 		return fmt.Errorf("error replacing binary: %w", err)
 	}
+	return nil
+}
 
+// restartApplication restarts the application.
+func restartApplication() {
 	fmt.Println("Update applied. Restarting application...")
-
-	// Restart the application
-	cmd := exec.Command("ChatGPT-Next-Web-Session-Exporter")
+	cmd := exec.Command("myapp")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("error restarting application: %w", err)
+		fmt.Fprintf(os.Stderr, "error restarting application: %v", err)
+		return
 	}
 
 	// Exit the current process
 	os.Exit(0)
-
-	return nil
 }
