@@ -6,8 +6,6 @@
 // "magic" of Go programming language (🎩🪄).
 //
 // Additionally, it can be utilized for tracking file activities during tests or without tests (as Expert).
-//
-// Copyright (c) 2023 H0llyW00dzZ
 package filesystem
 
 import (
