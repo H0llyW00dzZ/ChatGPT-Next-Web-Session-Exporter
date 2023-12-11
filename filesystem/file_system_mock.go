@@ -1,5 +1,7 @@
-// Package filesystem provides a mock implementation of the FileSystem interface for testing purposes.
-// It allows for tracking file operations and simulating file system interactions without actual disk I/O (Magic Golang 🎩 🪄).
+// Below, the package filesystem furnishes a mock implementation of the FileSystem
+// interface intended for testing. It enables the monitoring of file operations and
+// the emulation of file system interactions without real disk I/O, showcasing the
+// "magic" of Go programming language (🎩🪄).
 //
 // Copyright (c) 2023 H0llyW00dzZ
 package filesystem
