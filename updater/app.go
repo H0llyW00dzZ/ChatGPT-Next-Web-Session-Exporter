@@ -59,6 +59,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
 	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/interactivity"
@@ -73,10 +74,57 @@ const (
 // It captures the tag name of the release and a slice of assets that are part of the release.
 type releaseInfo struct {
 	TagName string `json:"tag_name"` // The name of the tag for the release.
+	Body    string `json:"body"`     // The release notes or description.
 	Assets  []struct {
 		Name               string `json:"name"`                 // The name of the asset.
 		BrowserDownloadURL string `json:"browser_download_url"` // The URL for downloading the asset.
 	} `json:"assets"` // A list of assets available for the release.
+}
+
+// printReleaseNotes takes a string containing the body of a GitHub release,
+// which is typically formatted using Markdown, and prints it to the console
+// with some basic formatting applied for improved readability.
+//
+// The function performs the following transformations:
+//   - Converts Markdown headings (denoted by "## ") into all-uppercase text
+//     preceded by a newline, to visually separate sections when printed.
+//   - Normalizes newline characters across different operating systems to ensure
+//     consistent line breaks.
+//   - Splits the body into individual lines and inspects each line to detect URLs.
+//
+// Lines that contain URLs are prefixed with "Link:" to highlight them as clickable
+// links, even though they are not actually clickable in the terminal output.
+// This is a simple heuristic and may not recognize all URLs, especially if they
+// do not start with "http" or are part of Markdown link syntax.
+//
+// This function does not fully render Markdown as seen in web browsers. It is
+// intended to provide a basic, text-only representation that is suitable for
+// terminal output. For more complex Markdown rendering, a dedicated Markdown
+// parser would be more appropriate.
+//
+// Parameters:
+// - body: The Markdown-formatted release notes as a string.
+//
+// Note: The current implementation is a simple approach and may not be suitable
+// for all Markdown features. It is recommended to use a proper Markdown parser
+// for a more accurate and complete transformation.
+func printReleaseNotes(body string) {
+	// Replace Markdown headings with all-uppercase plus newlines
+	body = strings.ReplaceAll(body, "## ", "\n")
+	body = strings.ReplaceAll(body, "\r\n", "\n") // Normalize newlines for cross-platform compatibility
+
+	// Print each line, checking if it's a link to format it differently
+	lines := strings.Split(body, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "https://") {
+			// This check assumes that any URLs will use HTTPS.
+			// In a real application, consider using a more robust method
+			// to detect both HTTP and HTTPS links.
+			fmt.Printf("Link: %s\n", line)
+		} else {
+			fmt.Println(line)
+		}
+	}
 }
 
 // getLatestRelease fetches the latest release information from the GitHub repository.
@@ -124,7 +172,11 @@ func UpdateApplication(rfs filesystem.FileSystem) error {
 		return nil
 	}
 
-	// Pass the context and reader to downloadAndUpdate if needed
+	// Print release notes
+	fmt.Printf("Release notes for version %s:\n", release.TagName)
+	printReleaseNotes(release.Body)
+
+	// Pass only the release to downloadAndUpdate
 	tempFileName, err := downloadAndUpdate(release)
 	if err != nil {
 		return err
