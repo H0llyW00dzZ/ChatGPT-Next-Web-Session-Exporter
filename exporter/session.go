@@ -1,5 +1,3 @@
-// Copyright (c) 2023 H0llyW00dzZ
-//
 // Package exporter provides tools for extracting and converting chat session data
 // from JSON files into various formats, such as CSV and JSON datasets.
 //
@@ -70,6 +68,8 @@
 //	    log.Fatal(err)
 //	}
 //	fmt.Println(datasetJSON)
+//
+// Copyright (c) 2023 H0llyW00dzZ
 package exporter
 
 import (
