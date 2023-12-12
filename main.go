@@ -24,12 +24,12 @@ import (
 
 const (
 	// Output format options
-	OutputFormatCSV         = 1
-	OutputFormatDataset     = 2
-	OutputFormatInline      = 1
-	OutputFormatPerLine     = 2
-	OutputFormatSeparateCSV = 3
-	OutputFormatJSONInCSV   = 4
+	OutputFormatCSV         = exporter.FormatOptionInline // Assuming this is the inline format
+	OutputFormatDataset     = 2                           // Keep the dataset format option as is
+	OutputFormatInline      = exporter.FormatOptionInline
+	OutputFormatPerLine     = exporter.FormatOptionPerLine
+	OutputFormatSeparateCSV = exporter.OutputFormatSeparateCSVFiles // Assuming this is the separate CSV files format
+	OutputFormatJSONInCSV   = exporter.FormatOptionJSON             // Assuming this is the JSON format
 
 	// File type
 	FileTypeDataset = "dataset"
@@ -38,7 +38,7 @@ const (
 	PromptEnterJSONFilePath        = "Enter the path to the JSON file: "
 	PromptRepairData               = "Do you want to repair data? (yes/no): "
 	PromptSelectOutputFormat       = "Select the output format:\n1) CSV\n2) Hugging Face Dataset\n"
-	PromptSelectCSVOutputFormat    = "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) Separate Files for Sessions and Messages\n4) JSON String in CSV\n"
+	PromptSelectCSVOutputFormat    = "Select the message output format:\n1) Inline Formatting\n2) One Message Per Line\n3) JSON String in CSV\n4) Separate Files for Sessions and Messages\n"
 	PromptEnterCSVFileName         = "Enter the name of the CSV file to save: "
 	PromptEnterSessionsCSVFileName = "Enter the name of the sessions CSV file to save: "
 	PromptEnterMessagesCSVFileName = "Enter the name of the messages CSV file to save: "
@@ -341,6 +341,7 @@ func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader
 		return
 	}
 
+	// If the format option is not for separate CSV files, prompt for a single CSV file name.
 	if formatOption != OutputFormatSeparateCSV {
 		csvFileName, err = promptForInput(ctx, reader, PromptEnterCSVFileName)
 		if err != nil {
@@ -350,10 +351,12 @@ func executeCSVConversion(rfs filesystem.FileSystem, ctx context.Context, reader
 	}
 
 	switch formatOption {
-	case OutputFormatSeparateCSV:
-		createSeparateCSVFiles(rfs, ctx, reader, sessions)
 	case OutputFormatInline, OutputFormatPerLine, OutputFormatJSONInCSV:
+		// Call the function to convert sessions to a single CSV file
 		convertToSingleCSV(rfs, ctx, reader, sessions, formatOption, csvFileName)
+	case OutputFormatSeparateCSV:
+		// Call the function to create separate CSV files for sessions and messages
+		createSeparateCSVFiles(rfs, ctx, reader, sessions)
 	default:
 		bannercli.PrintTypingBanner("Invalid format option.", 100*time.Millisecond)
 	}

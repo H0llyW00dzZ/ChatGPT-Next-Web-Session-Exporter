@@ -53,7 +53,7 @@ func TestProcessCSVOption(t *testing.T) {
 
 	// Simulate user input by creating a reader that will return the input as if typed by a user.
 	// Assuming that the option for OutputFormatSeparateCSVFiles is 4 as per the constants defined in session.go.
-	input := fmt.Sprintf("%d\noutput_sessions.csv\noutput_messages.csv\n", 3)
+	input := fmt.Sprintf("%d\noutput_sessions.csv\noutput_messages.csv\n", 4)
 	reader := bufio.NewReader(strings.NewReader(input))
 
 	// Create a cancellable context to allow for timeout or cancellation of the process.
