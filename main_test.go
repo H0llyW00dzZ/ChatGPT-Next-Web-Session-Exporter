@@ -287,3 +287,40 @@ func TestConfirmOverwrite(t *testing.T) {
 		})
 	}
 }
+
+// TestWriteContentToFile_ContextCancellation checks that writeContentToFile correctly handles a scenario where the context is cancelled.
+// This ensures that if a context with a deadline or cancellation is passed to the function, it can gracefully handle the cancellation and stop the file writing process.
+// Note: This test does not perform operations on the actual disk I/O.
+func TestWriteContentToFile_ContextCancellation(t *testing.T) {
+	// Create a cancellable context and cancel it immediately to simulate the scenario
+	// where the operation is cancelled before it even starts.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // This will trigger the context's cancellation.
+
+	// Create a buffer to act as user input, but in the context cancellation case,
+	// it should not be read, so we leave it empty.
+	var userInput bytes.Buffer
+	reader := bufio.NewReader(&userInput)
+
+	// Define the content that would be written to the file if the operation were not cancelled.
+	content := `{"message": "Hello Machine ? This is a Gopher unit test."}`
+
+	// Create a mock file system to intercept and record calls to the file system.
+	// Since the context is cancelled, the WriteFile method should not be called.
+	mockFS := filesystem.NewMockFileSystem()
+
+	// Call the function to be tested with the cancelled context.
+	// Since the context is already cancelled, we expect the function to return an error.
+	err := writeContentToFile(mockFS, ctx, reader, content, "dataset")
+
+	// Check if the error returned is the expected context.Canceled error.
+	// If the function does not handle context cancellation correctly, this test will fail.
+	if err == nil || err != context.Canceled {
+		t.Errorf("expected context.Canceled error, got %v", err)
+	}
+
+	// Optionally, we could also verify that no file has been written to the mock file system.
+	if mockFS.WriteFileCalled {
+		t.Error("WriteFile should not have been called after context cancellation")
+	}
+}

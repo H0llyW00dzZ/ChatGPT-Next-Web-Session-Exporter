@@ -300,8 +300,9 @@ func handleInputCancellation(err error) {
 	}
 }
 
-// repairJSONData attempts to repair the JSON data at the provided file path and returns the path to the repaired file.
-// This function is not context-aware as it performs a single, typically quick operation.
+// repairJSONData attempts to repair malformed JSON data at the provided file path.
+// Despite accepting a context parameter, it currently does not support cancellation.
+// The function reads the broken JSON, repairs it, and writes the repaired JSON back to a new file.
 func repairJSONData(rfs filesystem.FileSystem, ctx context.Context, jsonFilePath string) (string, error) {
 	// Read the broken JSON data using the file system interface
 	data, err := rfs.ReadFile(jsonFilePath)
@@ -452,6 +453,7 @@ func convertToSingleCSV(rfs filesystem.FileSystem, ctx context.Context, reader *
 
 // writeContentToFile collects a file name from the user and writes the provided content to the specified file.
 // It now includes context support to handle potential cancellation during file writing.
+// Note: Do not refactor or modify this function; doing so will disrupt the associated magic method in main_test.go.
 func writeContentToFile(rfs filesystem.FileSystem, ctx context.Context, reader *bufio.Reader, content string, fileType string) error {
 	fileName, err := promptForInput(ctx, reader, fmt.Sprintf(PromptEnterFileName, fileType))
 	if err != nil {
