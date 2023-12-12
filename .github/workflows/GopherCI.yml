@@ -42,7 +42,7 @@ jobs:
 
     - name: Run tests
       run: |
-        go test -v -timeout 30s -run '^(TestProcessCSVOption|TestPromptForInput|TestPromptForInputCancellation|TestLoadTestSessionsInvalidPath|TestLoadIncorrectJson|TestRepairJSONDataFromFile|TestWriteContentToFile|TestConfirmOverwrite)' github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter
+        go test -v -timeout 30s -run '^(TestProcessCSVOption|TestPromptForInput|TestPromptForInputCancellation|TestLoadTestSessionsInvalidPath|TestLoadIncorrectJson|TestRepairJSONDataFromFile|TestWriteContentToFile|TestConfirmOverwrite|TestWriteContentToFile_ContextCancellation)' github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter
 
   build:
     name: Gopher Unit Testing Building Application on ${{ matrix.os }}
