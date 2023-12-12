@@ -50,6 +50,8 @@
 package updater
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -57,6 +59,9 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/filesystem"
+	"github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter/interactivity"
 )
 
 const (
@@ -106,7 +111,9 @@ func getLatestRelease() (*releaseInfo, error) {
 //
 // Returns nil if the application is up to date or the update is successfully applied.
 // If an error occurs during the update process, it returns a non-nil error.
-func UpdateApplication() error {
+func UpdateApplication(rfs filesystem.FileSystem) error {
+	ctx := context.Background()
+	reader := bufio.NewReader(os.Stdin)
 	release, err := getLatestRelease()
 	if err != nil {
 		return fmt.Errorf("error fetching latest release: %w", err)
@@ -117,12 +124,14 @@ func UpdateApplication() error {
 		return nil
 	}
 
+	// Pass the context and reader to downloadAndUpdate if needed
 	tempFileName, err := downloadAndUpdate(release)
 	if err != nil {
 		return err
 	}
 
-	if err := applyUpdate(tempFileName); err != nil {
+	// Pass the context, reader, and filesystem to applyUpdate
+	if err := applyUpdate(ctx, reader, rfs, tempFileName); err != nil {
 		return err
 	}
 
@@ -185,7 +194,17 @@ func downloadAsset(assetURL string) (string, error) {
 
 // applyUpdate applies the update by replacing the current binary with the new one.
 // It takes the name of the temporary file containing the new binary as an argument.
-func applyUpdate(tempFileName string) error {
+func applyUpdate(ctx context.Context, reader *bufio.Reader, rfs filesystem.FileSystem, tempFileName string) error {
+	// Confirm whether to overwrite the existing binary
+	shouldOverwrite, err := interactivity.ConfirmOverwrite(rfs, ctx, reader, "ChatGPT-Next-Web-Session-Exporter")
+	if err != nil {
+		return fmt.Errorf("error during overwrite confirmation: %w", err)
+	}
+	if !shouldOverwrite {
+		fmt.Println("Update cancelled by the user.")
+		return nil
+	}
+
 	// Replace the current binary with the new one
 	if err := os.Rename(tempFileName, "ChatGPT-Next-Web-Session-Exporter"); err != nil {
 		return fmt.Errorf("error replacing binary: %w", err)
@@ -196,7 +215,7 @@ func applyUpdate(tempFileName string) error {
 // restartApplication restarts the application.
 func restartApplication() {
 	fmt.Println("Update applied. Restarting application...")
-	cmd := exec.Command("ChatGPT-Next-Web-Session-Exporter")
+	cmd := exec.Command(os.Args[0], os.Args[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
