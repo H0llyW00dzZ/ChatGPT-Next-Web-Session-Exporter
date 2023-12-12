@@ -1,5 +1,3 @@
-// Copyright (c) 2023 H0llyW00dzZ
-//
 // Package updater provides functionality to automatically update a Go application
 // by checking for the latest release on GitHub and, if available, downloading and
 // applying the update. It is designed to work with applications that are distributed
@@ -47,6 +45,8 @@
 // authenticity of the binaries, such as signing the releases.
 //
 // # Additional Note: This Package Currently under development.
+//
+// Copyright (c) 2023 H0llyW00dzZ
 package updater
 
 import (

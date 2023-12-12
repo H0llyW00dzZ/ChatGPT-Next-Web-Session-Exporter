@@ -1,9 +1,9 @@
-// Copyright (c) 2023 H0llyW00dzZ
-//
 // Package interactivity provides functions to handle interactive command-line interfaces.
 //
 // It includes utilities for prompting users for confirmation and reading their input in a context-aware manner, which allows for graceful
 // cancellation of input requests. The package is designed to integrate with a filesystem interface to check for file existence and handle potential file overwrites.
+//
+// Copyright (c) 2023 H0llyW00dzZ
 package interactivity
 
 import (

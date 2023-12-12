@@ -1,5 +1,3 @@
-// Copyright (c) 2023 H0llyW00dzZ
-//
 // Package bannercli provides functionality to print different styles of banners
 // to the terminal. These styles include binary representation and simple
 // animation effects to enhance the visual presentation of CLI applications.
@@ -16,6 +14,8 @@
 //
 //		// ... rest of your main function ...
 //	}
+//
+// Copyright (c) 2023 H0llyW00dzZ
 package bannercli
 
 import (
